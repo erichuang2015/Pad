@@ -11,6 +11,11 @@ define( 'SETTINGS',		'data/site.json' );
 define( 'DATA',		'data/site.db' );
 
 /**
+ *  Database connection timeout
+ */
+define( 'DATA_TIMEOUT',	5 );
+
+/**
  *  This setting is only needed once during setup
  */
 define( 'DEFAULT_USER',	'admin' );
