@@ -1,32 +1,5 @@
 <?php declare( strict_types = 1 );
 
-
-/**
- *  Core site settings
- */
-define( 'SETTINGS',		'data/site.json' );
-
-/**
- *  Database
- */
-define( 'DATA',		'data/site.db' );
-
-/**
- *  Theme directory
- */
-define( 'THEME_DIR',		'themes/' );
-
-/**
- *  Anti-cross-site request forgery token size
- */
-define( 'CSRF_BYTES',		8 );
-
-/**
- *  Token generation/matching hash
- */
-define( 'CSRF_HASH',		'tiger160,4' );
-
-
 /**
  *  Site messages
  */
@@ -40,6 +13,18 @@ define( 'MSG_LOGINERROR',	'Login error' );
 define( 'MSG_FORMEXP',	'Form expired' );
 
 
+
+/**
+ *  Anti-cross-site request forgery token size
+ */
+define( 'CSRF_BYTES',		8 );
+
+/**
+ *  Token generation/matching hash
+ */
+define( 'CSRF_HASH',		'tiger160,4' );
+
+
 /**
  *  Hard limits
  */
@@ -50,9 +35,6 @@ define( 'PASS_MAX',		2048 );
 
 // Limit for years of past posts
 define( 'YEAR_END',		2000 );
-
-// Testing or for sites behind Tor
-define( 'SKIP_LOCAL',		true );
 
 // Visitor signature hash
 define( 'SIG_HASH',		'tiger160,4' );
@@ -66,6 +48,8 @@ define( 'SESSION_NAME',	'pad' );
 define( 'COOKIE_EXP', 	86400 );
 define( 'COOKIE_PATH',	'/' );
 
+
+
 /**
  *  Default content security policy is to restrict everything to 
  *  the current host
@@ -78,6 +62,8 @@ define( 'DEFAULT_JCSP',	<<<JSON
 }
 JSON
 );
+
+
 
 
 /**
@@ -102,6 +88,12 @@ define( 'AUTH_EDITOR',	10 );
 define( 'AUTH_USER',		0 );
 define( 'AUTH_BANNED',	-1 );
 
+
+
+
+// Do not edit the following 2 lines
+define( 'INCLUDED', 1 );
+require( 'config.php' );
 
 /**
  *  Security 
@@ -956,11 +948,39 @@ function passNeedsRehash(
 }
 
 /**
+ *  Check for deletion request and confirmation
+ */
+function postDeleteCheck( $data ) {
+	// Delete check
+	if ( !$data['delete'] && !$data['delconf'] ) {
+		return;
+	}
+	
+	// Nothing to delete
+	if ( empty( $data['id'] ) ) {
+		redirect( 200, 'manage' );
+	} else {
+		$post = 
+		findPreviewById( ( int ) $data['id'] );
+		
+		// Delete requested, but nothing to delete?
+		if ( empty( $post ) ) {
+			redirect( 200, 'manage' );
+		}
+		
+		
+	}
+}
+
+/**
  *  Process post input filter with user details
  */
 function postForm( array $filter, array $user ) {
 	$data				= 
 	\filter_input_array( \INPUT_POST, $filter );
+	
+	// Delete check
+	postDeleteCheck( $data );
 	
 	$data['slug']			= 
 	slugify( 
@@ -2663,6 +2683,12 @@ function doEditPage( array $route ) {
 		],
 		'preview'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'delete'	=> [
+			'filter'	=> \FILTER_VALIDATE_BOOLEAN,
+			'options'	=> [
+				'default'	=> false
+			]
+		],
+		'delconf'	=> [
 			'filter'	=> \FILTER_VALIDATE_BOOLEAN,
 			'options'	=> [
 				'default'	=> false
