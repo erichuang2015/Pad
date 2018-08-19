@@ -64,14 +64,13 @@ CREATE TABLE posts (
 	uuid TEXT DEFAULT NULL COLLATE NOCASE,
 	title TEXT NOT NULL COLLATE NOCASE,
 	slug TEXT NOT NULL COLLATE NOCASE,
-	permalink TEXT NOT NULL COLLATE NOCASE,
 	parent_id INTEGER DEFAULT NULL REFERENCES posts( id ) 
 		ON DELETE CASCADE,	-- Parent post
 	user_id INTEGER NOT NULL REFERENCES users( id ) 
 		ON DELETE CASCADE,	-- Creator
 	summary TEXT DEFAULT NULL COLLATE NOCASE,
 	body TEXT NOT NULL,		-- Content
-	created_ TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	published TIMESTAMP DEFAULT NULL,
 	status INTEGER DEFAULT 0
@@ -82,7 +81,6 @@ CREATE INDEX idx_post_published ON posts( published );
 CREATE INDEX idx_post_parent_id ON posts( parent_id );
 CREATE INDEX idx_post_user ON posts( user_id );
 CREATE INDEX idx_post_slug ON posts( slug );
-CREATE UNIQUE INDEX idx_post_permalink ON posts( permalink );
 
 CREATE TABLE post_meta(
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -312,7 +310,7 @@ CREATE VIEW page_view AS SELECT
 
 -- Post preview (for sibling details)
 CREATE VIEW post_preview AS SELECT 
-	id, title, slug, status,
+	id, title, slug, user_id, status,
 	( strftime( '/%Y/%m/%d', 
 		COALESCE( published, created ) ) || 
 		'/' || slug 
@@ -411,29 +409,17 @@ END;
 
 
 
--- Post UUID and permalink
+-- Post UUID
 CREATE TRIGGER post_insert AFTER INSERT ON posts FOR EACH ROW
 BEGIN
-	UPDATE posts SET 
-		uuid = ( SELECT id FROM uuid ), 
-		permalink = ( strftime( '/%Y/%m/%d/', 
-			COALESCE( posts.published, posts.created ) ) || 
-			posts.slug 
-		)
-		
+	UPDATE posts SET uuid = ( SELECT id FROM uuid ) 
 		WHERE id = NEW.rowid;
 END;
 
 -- Post update
 CREATE TRIGGER post_update AFTER UPDATE ON posts FOR EACH ROW
 BEGIN
-	UPDATE posts SET 
-		updated = CURRENT_TIMESTAMP,
-		permalink = ( strftime( '/%Y/%m/%d/', 
-			COALESCE( posts.published, posts.created ) ) || 
-			posts.slug 
-		)
-		
+	UPDATE posts SET updated = CURRENT_TIMESTAMP 
 		WHERE id = NEW.rowid;
 END;
 
