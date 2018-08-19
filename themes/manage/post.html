@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Editor</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="{theme}css/editor.css">
+</head>
+<body>
+<form action="{action}" method="post">
+	<input type="hidden" name="csrf" value="{csrf}">
+	<input type="hidden" name="id" value="{id}">
+	<aside>
+		<p><input type="text" name="title" value="{title}" placeholder="Title" required></p>
+		<p><input type="text" name="slug" value="{slug}" placeholder="Slug"></p>
+		<p><input type="datetime-local" name="publish" value="{published}" placeholder="Publish on"></p>
+	</aside>
+	<section>
+		<textarea rows="10" cols="40" name="body" id="body" placeholder="Body" class="editor" required>{body}</textarea>
+	</section>
+</form>
+<footer>
+	<p><input name="preview" type="submit" value="Save"> | 
+			<input name="save" type="submit" value="Publish"></p>
+	{delete}
+	<p><a href="{post_list}">Posts</a> | <a href="{settings}">Settings</a><a href="{help}">Help</a></p>
+</footer>
+<script type="text/javascript" src="{theme}js/manage.js"></script>
+<script type="text/javascript" src="{theme}js/editor_ready.js"></script>
+</body>
+</html>
