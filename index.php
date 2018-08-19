@@ -2679,11 +2679,14 @@ function logout( array $route ) {
 function viewLogin( array $route ) {
 	$conf		= settings();
 	$theme		= getTemplate( $conf, 'login' );
+	$root		= getRoot( $conf );
 	
 	$htpl		= [
+		'{page_title}'=> $conf['title'],
+		'{root}'	=> $root,
 		'{theme}'	=> getTheme( $conf ),
 		'{csrf}'	=> getCsrf( 'login' ),
-		'{action}'	=> getRoot( $conf ) . 'login';
+		'{action}'	=> $root . 'login';
 	];
 	
 	send( 200, \strtr( $theme, $tpl ) );
@@ -2759,13 +2762,15 @@ function viewRegister( array $route ) {
 	if ( !$reg ) {
 		send( 403, MSG_REGCLOSED );
 	}
-	
+	$root		= getRoot( $conf );
 	$theme		= getTemplate( $conf, 'register' );
 	$html		= 
 	\strtr( $theme, [
+		'{page_title}'=> $conf['title'],
+		'{root}'	=> $root,
 		'{theme}'	=> getTheme( $conf ),
 		'{csrf}'	=> getCsrf( 'register' ),
-		'{action}'	=> getRoot( $conf ) . 'register';
+		'{action}'	=> $root. 'register';
 	] );
 }
 
@@ -2822,16 +2827,18 @@ function viewChPass( array $route ) {
 		sendLogin( $conf, 'changepass' );
 	}
 	
-	
+	$root		= getRoot( $conf );
+	$theme		= getTemplate( $conf, 'login' );
 	$conf		= settings();
-	$html		= 
-	\strtr( $theme, [
+	$tpl		= [
+		'{page_title}'=> $conf['title'],
+		'{root}'	=> $root,
 		'{theme}'	=> getTheme( $conf ),
-		'{csrf}'	=> getCsrf( 'password' ),
-		'{action}'	=> getRoot( $conf ) . 'changepass';
-	] );
+		'{csrf}'	=> getCsrf( 'chpassword' ),
+		'{action}'	=> $root . 'changepass';
+	];
 	
-	send( 200, $html );
+	send( 200, \strtr( $theme, $tpl ) );
 }
 
 /**
@@ -2857,7 +2864,7 @@ function doChPass( array $route ) {
 	] );
 	
 	// Check for form expiration
-	$csrf = checkCsrf( 'password', $form['csrf'] ?? '' );
+	$csrf = checkCsrf( 'chpassword', $form['csrf'] ?? '' );
 	if ( !$csrf ) {
 		send( 403, MSG_FORMEXP );
 	}
