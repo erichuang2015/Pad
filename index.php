@@ -105,68 +105,6 @@ require( 'config.php' );
  *  Security 
  */
 
-/**
- *  Key derivation function
- */
-function pbk( 
-	string		$txt, 
-	string		$salt		= '', 
-	string		$algo		= 'tiger160,4',
-	int		$rounds	= 6000, 
-	int		$kl		= 128
-) : string {
-	$salt	= empty( $salt ) ? 
-			\bin2hex( \random_bytes( 16 ) ) : $salt;
-	$hash	= \hash_pbkdf2( $algo, $txt, $salt, $rounds, $kl );
-	$out	= array( $algo, $salt, $rounds, $kl, $hash );
-	return \base64_encode( \implode( '$', $out ) );
-}
-
-/**
- *  Verify derived key against plain text
- */
-function \verifyPbk(
-	string		$txt,
-	string		$hash
-) : bool {
-	// Empty or excessively large hash? Reject
-	if ( empty( $hash ) || \mb_strlen( $hash, '8bit' ) > 600 ) {
-		return false;
-	}
-	
-	// Invalid base64 encoding
-	$key	= \base64_decode( $hash, true );
-	if ( false === $key ) {
-		return false;
-	}
-	
-	// Check PBK components
-	$key	= cleanPbk( $key );
-	$k	= \explode( '$', $key );
-	if ( empty( $k ) || empty( $txt ) ) {
-		return false;
-	}
-	if ( \count( $k ) != 5 ) {
-		return false;
-	}
-	if ( !\in_array( $k[0], \hash_algos() , true ) ) {
-		return false;
-	}
-	
-	$pbk	= \hash_pbkdf2( $k[0], $txt,$k[1], 
-			( int ) $k[2], ( int ) $k[3] );
-	
-	return \hash_equals( $k[4],  $pbk );
-}
-
-/**
- *  Scrub the derived key of any invalid characters
- */
-function string cleanPbk( $hash ) : string {
-	return 
-	\preg_replace( '/[^a-f0-9\$]+$/i', '', $hash );
-}
-
 	
 /**
  *  Process HTTP_* variables
@@ -3146,7 +3084,7 @@ function doConfig( array $route ) {
 	
 	$form		= \filter_input_array( \INPUT_POST, [
 		'csrf'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
-		'title'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'title'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'tagline'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'webroot'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'theme'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
