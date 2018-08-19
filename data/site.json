@@ -1,0 +1,148 @@
+{
+	"settings" : {
+		"title"		: "Site",
+		"tagline"	: "This is my site. There are many like it, but this one is mine",
+		"date_format"	: "l, M d, Y",
+		"timezone"	: "America\/New_York",
+		"copyright"	: "Copyright \u00a9 2018. All rights reserved.",
+		"webroot"	: "\/",
+		"theme"		: "goethe",
+		"show_full"	: true,
+		"allow_register": false,
+		"page_limit"	: 15,
+		"force_tls"	: false,
+		"csp" : {
+			"default-src"		: "'none'",
+			"img-src"		: "*",
+			"style-src"		: "'self'",
+			"script-src"		: "'self'",
+			"form-action"		: "'self'",
+			"frame-ancestors"	: "'self' www.youtube.com player.vimeo.com"
+		}
+	},
+	"routes" : [
+		[ "get", "",				"homepage" ],
+		[ "get", "page:page",			"homepage" ],
+		
+		[ "get", "manage",			"newPage" ],
+		[ "post","manage",			"doNewPage" ],
+		
+		[ "get", "manage\/edit\/:id",		"editPage" ],
+		[ "post","manage\/edit\/:id",		"doEditPage" ],
+		
+		[ "get", "manage\/settings",		"viewConfig" ],
+		[ "post","manage\/settings",		"doConfig" ],
+		
+		[ "get", "users\/:id\/:user",		"viewProfile" ],
+		[ "get", "users\/:user",		"viewProfile" ],
+		[ "post","users\/:id\/:user",		"doProfile" ],
+		
+		[ "get", "logout",			"logout" ],
+		
+		[ "get", "login",			"viewLogin" ],
+		[ "get", "login\/:redir",		"viewLogin" ],
+		
+		[ "post","login",			"doLogin" ],
+		[ "post","login\/:redir",		"doLogin" ],
+		
+		[ "get", "register",			"viewRegister" ],
+		[ "post","register",			"doRegister" ],
+		
+		[ "get", "changepass",			"viewChPass" ],
+		[ "post","changepass",			"doChPass" ],
+		
+		[ "get", "tags\/:tag",			"viewTag" ],
+		[ "get", "tags\/:tag/page:page",	"viewTag" ],
+		
+		[ "get", "\\?search=*",			"search" ],
+		[ "get", "\\?search=*\/page:page",	"search" ],
+		
+		[ "get", ":year\/:month\/:day",		"archive" ],
+		[ "get", ":year\/:month\/:day\/page:page","archive" ],
+		[ "get", ":year\/:month",		"archive" ],
+		[ "get", ":year\/:month\/page:page",	"archive" ],
+		[ "get", ":year",			"archive" ],
+		[ "get", ":year\/page:page",		"archive" ],
+		
+		[ "get", "feed",			"feed" ],
+		[ "get", "feed\/page:page",		"feed" ],
+		
+		[ "get", ":year\/:month\/:day\/:slug",	"viewPage" ],
+		[ "get", ":id\/:slug",			"viewPage" ]
+	], 
+	"markers" : {
+		"*"	: "(?<all>.+)",
+		":id"	: "(?<id>[1-9][0-9]*)",
+		":ids"	: "(?<ids>[1-9][0-9,]*)",
+		":num"	: "(?<num>[0-9]{1,3})",
+		":page"	: "(?<page>[1-9][0-9]*)",
+		":user"	: "(?<user>[\\pL\\pN\\s-]{2,30})",
+		":label": "(?<label>[\\pL\\pN\\s_-]{1,30})",
+		":tag"	: "(?<tag>[\\pL\\pN\\s_\\,-]{1,30})",
+		":year"	: "(?<year>[2][0-9]{3})",
+		":month": "(?<month>[0-3][0-9]{1})",
+		":day"	: "(?<day>[0-9][0-9]{1})",
+		":slug"	: "(?<slug>[\\pL\\-\\d]{1,100})",
+		":file"	: "(?<file>[\\pL_\\-\\d\\.\\s]{1,120})",
+		":redir": "(?<redir>[a-z_\\:\\/\\-\\d\\.\\s]{1,120})"
+	},
+	"whitelist" : {
+		"p"		: [ "style", "class", "align", 
+					"data-pullquote", "data-video", 
+					"data-media" ],
+		
+		"div"		: [ "style", "class", "align" ],
+		"span"		: [ "style", "class" ],
+		"br"		: [ "style", "class" ],
+		"hr"		: [ "style", "class" ],
+		
+		"h1"		: [ "style", "class" ],
+		"h2"		: [ "style", "class" ],
+		"h3"		: [ "style", "class" ],
+		"h4"		: [ "style", "class" ],
+		"h5"		: [ "style", "class" ],
+		"h6"		: [ "style", "class" ],
+		
+		"strong"	: [ "style", "class" ],
+		"em"		: [ "style", "class" ],
+		"u"	 	: [ "style", "class" ],
+		"strike"	: [ "style", "class" ],
+		"del"		: [ "style", "class", "cite" ],
+		
+		"ol"		: [ "style", "class" ],
+		"ul"		: [ "style", "class" ],
+		"li"		: [ "style", "class" ],
+		
+		"code"		: [ "style", "class" ],
+		"pre"		: [ "style", "class" ],
+		
+		"sup"		: [ "style", "class" ],
+		"sub"		: [ "style", "class" ],
+		
+		"a"		: [ "style", "class", "rel", 
+					"title", "href" ],
+		"img"		: [ "style", "class", "src", "height", 
+					"width", "alt", "longdesc", 
+					"title", "hspace", "vspace" ],
+	
+		"table"		: [ "style", "class", "cellspacing", 
+						"border-collapse", 
+						"cellpadding" ],
+		
+		"thead"		: [ "style", "class" ],
+		"tbody"		: [ "style", "class" ],
+		"tfoot"		: [ "style", "class" ],
+		"tr"		: [ "style", "class" ],
+		"td"		: [ "style", "class", "colspan", 
+					"rowspan" ],
+		"th"		: [ "style", "class", "scope", 
+					"colspan", "rowspan" ],
+		
+		"q"		: [ "style", "class", "cite" ],
+		"cite"		: [ "style", "class" ],
+		"abbr"		: [ "style", "class" ],
+		"blockquote"	: [ "style", "class", "cite" ],
+	
+		"body"		: []
+	}
+}
