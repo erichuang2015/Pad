@@ -71,6 +71,14 @@ define( 'COOKIE_PATH',	'/' );
  *  the current host
  */
 define( 'DEFAULT_CSP',	"default-src 'self'; frame-ancestors 'none'" );
+define( 'DEFAULT_JCSP',	<<<JSON
+{
+	"default-src"		: "'self'",
+	"frame-ancestors"	: "'none'"
+}
+JSON
+);
+
 
 /**
  *  URL validation regular expressions
@@ -430,6 +438,10 @@ function decode( string $data ) : array {
 	if ( empty( $data ) ) {
 		return [];
 	}
+	
+	if ( false === $data ) {
+		return [];
+	}
 	return $data;
 }
 
@@ -450,6 +462,17 @@ function settings() {
 	$data = decode( $data );
 	
 	return $data;
+}
+
+/**
+ *  Merge modified settings and save configuration
+ */
+function saveSettings( array $params ) {
+	$data			= settings();
+	$data['settings']	= $params;
+	
+	$out			= encode( $data );
+	\file_put_contents( SETTINGS, $out );
 }
 
 
@@ -1686,7 +1709,11 @@ function authUser() : array {
 		if ( empty( $cookie ) ) {
 			return [];
 		}
-		$user	= findCookie( $cookie );
+		// Sane defaults
+		if ( mb_strlen( $cookie, '8bit' ) > 255 ) {
+			return [];
+		}
+		$user	= findCookie( pacify( $cookie ) );
 		
 		if ( empty( $user ) ) {
 			return [];
@@ -2418,8 +2445,8 @@ function viewPage( array $route ) {
 	$atpl			= getTemplate( $conf, 'authorfrag' );
 	$root			= getRoot( $conf );
 	
-	$post['site_title']	= $post['title'] . ' - ' . $conf['site'];
-	$post['page_title']	= $conf[ 'site' ];
+	$post['site_title']	= $post['title'] . ' - ' . $conf['title'];
+	$post['page_title']	= $conf['title'];
 	$post['tagline']	= $conf['tagline'];
 	$post['root']		= $root;
 	$post['page_url']	= $root;
@@ -2742,6 +2769,9 @@ function viewRegister( array $route ) {
 	] );
 }
 
+/**
+ *  TODO: Handle registration
+ */
 function doRegister( array $route ) {
 	$reg		= $config['allow_register'] ?? false;
 	if ( !$reg ) {
@@ -2782,11 +2812,16 @@ function doRegister( array $route ) {
 	var_dump( $data );
 }
 
+/**
+ *  Show password change page
+ */
 function viewChPass( array $route ) {
 	$user		= authUser();
+	$conf		= settings();
 	if ( empty( $user ) ) {
-		send( 403, MSG_LOGIN );
+		sendLogin( $conf, 'changepass' );
 	}
+	
 	
 	$conf		= settings();
 	$html		= 
@@ -2799,11 +2834,16 @@ function viewChPass( array $route ) {
 	send( 200, $html );
 }
 
+/**
+ *  Handle password change
+ */
 function doChPass( array $route ) {
 	$user		= authUser();
+	$conf		= settings();
 	if ( empty( $user ) ) {
-		send( 403, MSG_LOGIN );
+		sendLogin( $conf, 'changepass' );
 	}
+	
 	$form		= \filter_input_array( \INPUT_POST, [
 		'csrf'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'password'	=> [
@@ -2843,20 +2883,173 @@ function doChPass( array $route ) {
 	
 	// Reset authorization
 	setAuth( $user );
-	
-	var_dump( $data );
+	send( 200, '' );
 }
 
+/**
+ *  Show current configuration
+ */
 function viewConfig( array $route ) {
-	// {showfull} 
-	
 	$user		= authUser();
+	$conf		= settings();
 	if ( empty( $user ) ) {
-		send( 403, MSG_LOGIN );
+		sendLogin( $conf, 'manage/settings' );
 	}
 	
-	$conf		= settings();
-	checkedCheckbox( $data[''] )
+	// Load post template and get Root
+	$theme		= getTemplate( $conf, 'settings', false, true );
+	$root		= getRoot( $conf );
+	
+	$tpl		= [
+		'{theme}'	=> getAdminTheme(),
+		'{action}'	=> $root . 'manage/settings',
+		'{post_list}'	=> $root . 'manage/posts',
+		'{help}'	=> $root . 'manage/help.html',
+		'{settings}'	=> $root . 'manage/settings',
+		'{title}'	=> $conf['title'],
+		'{tagline}'	=> $conf['tagline'],
+		'{copyright}'	=> $conf['copyright'],
+		'{csp}'	=> $conf['csp'],
+		'{show_full}'	=> checkedCheckbox( $conf['show_full'] ),
+		'{force_tls}'	=> checkedCheckbox( $conf['show_full'] ),
+		'{allow_register}'	=> 
+			checkedCheckbox( $conf['allow_register'] )
+	];
+	
+	send( 200, \strtr( $theme, $tpl ) );
 }
 
+/**
+ *  Save changed configuration
+ */
+function doConfig( array $route ) {
+	$user		= authUser();
+	$conf		= settings();
+	if ( empty( $user ) ) {
+		sendLogin( $conf, 'manage/settings' );
+	}
+	
+	$form		= \filter_input_array( \INPUT_POST, [
+		'csrf'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'title'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'tagline'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'webroot'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'theme'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'posts'	=>
+		[
+			'filter'	=> \FILTER_VALIDATE_INT,
+			'options'	=> 
+			[
+				'default'	=> 5,
+				'min_range'	=> 1,
+				'max_range'	=> 100 
+			]
+		],
+		'show_full'		=>
+		[
+			'filter'	=> \FILTER_VALIDATE_INT,
+			'options'	=> 
+			[
+				'default'	=> 1,
+				'min_range'	=> 0,
+				'max_range'	=> 1 
+			]
+		],
+		'allow_register'	=>
+		[
+			'filter'	=> \FILTER_VALIDATE_INT,
+			'options'	=> 
+			[
+				'default'	=> 1,
+				'min_range'	=> 0,
+				'max_range'	=> 1 
+			]
+		],
+		'page_limit'		=>
+		[
+			'filter'	=> \FILTER_VALIDATE_INT,
+			'options'	=> 
+			[
+				'default'	=> 1,
+				'min_range'	=> 10,
+				'max_range'	=> 500
+			]
+		],
+		'theme'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'date_format'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'timezone'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'copyright'	=> \FILTER_UNSAFE_RAW
+	] );
+	
+	$csrf = checkCsrf( 'settings', $form['csrf'] ?? '' );
+	if ( !$csrf ) {
+		send( 403, MSG_FORMEXP );
+	}
+	
+	// Filter HTML in copyright statement
+	if ( !empty( $data['copyright'] ) ) {
+		 $data['copyright']  = 
+		 	html( $data['copyright'] );
+	}
+	
+	// Check timezone
+	if ( !in_array(
+		$data['timezone'], \DateTimeZone::listIdentifiers() 
+	) ) {
+		$data['timezone']	= 'America/New_York';
+	}
+	
+	// Try to make sure the datetime format is valid
+	try {
+		$test			= date( $data['datetime'] );
+	} catch( \Exception $e ) {
+		$data['datetime']	= 'l, M d, Y';
+	}
+	
+	// Test CSP for JSON compliance or set default
+	$csp		= decode( encode( $data['csp'] ) );
+	if ( empty( $csp ) ) {
+		$data['csp']	= DEFAULT_JCSP;
+	}
+	
+	$showfull	= 
+		empty( $data['show_full'] ) ? true : 
+			( ( ( int ) $data['show_full'] == 1 ) ? 
+				true : false );
+	
+	$allowreg	= 
+		empty( $data['allow_register'] ) ? false : 
+			( ( ( int ) $data['show_full'] == 1 ) ? 
+				true : false );
+	
+	$forcetls	= 
+		empty( $data['allow_register'] ) ? false : 
+			( ( ( int ) $data['show_full'] == 1 ) ? 
+				true : false );
+	
+	
+	// Apply relevant parameters
+	$params = [
+		'site'		=> 
+			empty( $data['title'] ) ? 
+				'No title' : $data['title'],
+		'tagline'		=>
+			empty( $data['tagline'] ) ? 
+				'No tagline' : $data['tagline'],
+		
+		'post_limit'		=> $data['posts'],
+		'timezone'		=> $data['timezone'],
+		'copyright'		=> $data['copyright'],
+		'timezone'		=> $data['timezone'],
+		'date_format'		=> $data['date_format'],
+		'theme'		=> $data['theme'],
+		'page_limit'		=> $data['page_limit'],
+		'allow_register'	=> $allowreg,
+		'show_full'		=> $showfull,
+		'force_tls'		=> $forcetls
+	];
+	
+	saveSettings( $params );
+	send( 200, 'manage/settings' );
+}
 
