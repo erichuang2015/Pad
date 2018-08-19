@@ -294,6 +294,29 @@ function signature( bool $raw ) {
  *  Helpers
  */
 
+/**
+ *  Suhosin aware checking for function availability
+ *  
+ *  @param string $func Function name
+ *  @return boolean true If the function exists
+ */
+function missing( $func ) {
+	if ( \extension_loaded( 'suhosin' ) ) {
+		$exts = \ini_get( 'suhosin.executor.func.blacklist' );
+		if ( !empty( $exts ) ) {
+			$blocked	= \explode( ',', \strtolower( $exts ) );
+			$blocked	= \array_map( 'trim', $blocked );
+			$search	= \strtolower( $func );
+			
+			return (
+				false	== \function_exists( $func ) && 
+				true	== array_search( $search, $blocked ) 
+			);
+		}
+	}
+	
+	return !\function_exists( $func );
+}
 
 /**
  *  Load file contents and check for any server-side code		
@@ -1210,6 +1233,10 @@ function scrub(
  *  @return string
  */
 function tidyup( string $text ) : string {
+	if ( missing( 'tidy_repair_string' ) ) {
+		return $text;
+	}
+	
 	$opt = [
 		'bare'					=> 1,
 		'hide-comments' 			=> 1,
