@@ -2233,7 +2233,7 @@ function formatPosts( $conf, $results, $feed, $admin ) {
 		$v['post_edit']	= $root . $v['post_edit'];
 		
 		$out			.= 
-		formatPost( $root, $htpl, $atpl, $v );
+		formatPost( $conf, $htpl, $atpl, $v );
 	}
 	
 	return $out;
@@ -2242,7 +2242,8 @@ function formatPosts( $conf, $results, $feed, $admin ) {
 /**
  *  Format individual post
  */
-function formatPost( $root, $htpl, $atpl, $post ) {
+function formatPost( $conf, $htpl, $atpl, $post ) {
+	$root			= getRoot( $conf );
 	// Format author details
 	$post['author']	= 
 	\strtr( $atpl, [ 
@@ -2251,8 +2252,9 @@ function formatPost( $root, $htpl, $atpl, $post ) {
 					$post['authorlink']
 	] );
 	
-	// Parse content into HTML
-	$post['body']		=> html( $post['body'] );
+	// Parse content into HTML if full page requested
+	$post['body']		=> 
+		$conf['show_full'] ? html( $post['body'] ) : '';
 	
 	return \strtr( $htpl, $post );
 }
@@ -2284,7 +2286,8 @@ function indexView(
 		'{home}'		=> $root,
 		'{manage}'		=> $root . 'manage',
 		'{copyright}'		=> $conf['copyright'],
-		'{page_body}'		=> formatPosts( $results, $feed, $admin )
+		'{page_body}'		=> 
+		formatPosts( $conf, $results, $feed, $admin )
 	] );
 }
 
@@ -2453,7 +2456,7 @@ function viewPage( array $route ) {
 	$post['manage']	= $root . 'manage';
 	$post['theme']	= getTheme( $conf ) . '/';
 	
-	send( 200, formatPost( $root, $htpl, $atpl, $post ) );
+	send( 200, formatPost( $conf, $htpl, $atpl, $post ) );
 }
 
 function viewTag( array $route ) {
