@@ -2377,10 +2377,16 @@ function archive( array $route ) {
 	send( 200, indexView( $conf, $results ) );
 }
 
+/**
+ *  Syndication feed
+ */
 function feed( array $route ) {
 	homepage( $route, true );
 }
 
+/**
+ *  Handle showing single page
+ */
 function viewPage( array $route ) {
 	$config	= settings();
 	$data		= 
@@ -2459,10 +2465,16 @@ function viewPage( array $route ) {
 	send( 200, formatPost( $conf, $htpl, $atpl, $post ) );
 }
 
+/**
+ *  TODO: Tag browsing
+ */
 function viewTag( array $route ) {
 	
 }
 
+/**
+ *  TODO: Searching pages
+ */
 function search( array $route ) {
 	$data		= 
 	\filter_var_array( $route, [
@@ -2481,7 +2493,7 @@ function search( array $route ) {
 }
 
 /**
- *  Creating a new page
+ *  Show new page form
  */
 function newPage( array $route ) {
 	$user		= authUser();
@@ -2512,7 +2524,7 @@ function newPage( array $route ) {
 }
 
 /**
- *  Creating a new page
+ * Handle new page creation
  */
 function doNewPage( array $route ) {
 	$user		= authUser();
@@ -2553,6 +2565,9 @@ function doNewPage( array $route ) {
 	postForm( $filter, $user );
 }
 
+/**
+ *  Show page editing form
+ */
 function editPage( array $route ) {
 	$data		= 
 	\filter_var_array( $route,  [
@@ -2608,6 +2623,9 @@ function editPage( array $route ) {
 	send( 200, \strtr( $theme, $tpl ) );
 }
 
+/**
+ *  Handle page editing
+ */
 function doEditPage( array $route ) {
 	$user		= authUser();
 	$conf		= settings();
@@ -2655,6 +2673,9 @@ function doEditPage( array $route ) {
 	postForm( $filter, $user );
 }
 
+/**
+ *  View user profile page
+ */
 function viewProfile( array $route ) {
 	$user		= authUser();
 	$conf		= settings();
@@ -2664,6 +2685,9 @@ function viewProfile( array $route ) {
 	
 }
 
+/**
+ *  Change user profile page
+ */
 function doProfile( array $route ) {
 	$user		= authUser();
 	$conf		= settings();
@@ -2674,11 +2698,17 @@ function doProfile( array $route ) {
 	
 }
 
+/**
+ *  Handle logout
+ */
 function logout( array $route ) {
 	endAuth();
 	redirect( 205, '' );
 }
 
+/**
+ *  Show login page
+ */
 function viewLogin( array $route ) {
 	$conf		= settings();
 	$theme		= getTemplate( $conf, 'login' );
@@ -2695,6 +2725,9 @@ function viewLogin( array $route ) {
 	send( 200, \strtr( $theme, $tpl ) );
 }
 
+/**
+ *  Handle login
+ */
 function doLogin( array $route ) {
 	$form		= 
 	\filter_input_array( \INPUT_POST, [
@@ -2759,6 +2792,9 @@ function doLogin( array $route ) {
 	sendLogin( $conf, $form['redir'] ?? '' );
 }
 
+/**
+ *  Send registration page
+ */
 function viewRegister( array $route ) {
 	$conf		= settings();
 	$reg		= $conf['allow_register'] ?? false;
@@ -2767,14 +2803,15 @@ function viewRegister( array $route ) {
 	}
 	$root		= getRoot( $conf );
 	$theme		= getTemplate( $conf, 'register' );
-	$html		= 
-	\strtr( $theme, [
+	$tpl		= [
 		'{page_title}'=> $conf['title'],
 		'{root}'	=> $root,
 		'{theme}'	=> getTheme( $conf ),
 		'{csrf}'	=> getCsrf( 'register' ),
 		'{action}'	=> $root. 'register';
-	] );
+	];
+	
+	send( 200, \strtr( $theme, $tpl ) );
 }
 
 /**
