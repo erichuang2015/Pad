@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+<meta name='viewport' content='width=device-width' />
+<link rel='stylesheet' href='{theme}style.css' />
+<title>{page_title}</title>
+</head>
+<body>
+<header>
+	<h1><a href='{root}'>{page_title}</a></h1>
+</header>
+
+<article class='post'>
+	<form action='{action}' method='post'>
+		<input type='hidden' name='csrf' value='{csrf}' />
+		<p><input type='text' name='username' placeholder='username' required /></p>
+		<p><input type='password' name='password' placeholder='password' required /></p>
+		<p><input type='password' name='password2' placeholder='password again' required /></p>
+		<p><input type='submit' value='Register' /></p>
+	</form>
+</article>
+</body>
+</html>
