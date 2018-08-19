@@ -12,6 +12,12 @@ define( 'MSG_PASSERROR',	'Password error' );
 define( 'MSG_LOGINERROR',	'Login error' );
 define( 'MSG_FORMEXP',	'Form expired' );
 
+/**
+ *  Pagination
+ */
+define( 'PREV_PAGE', 		'Previous' );
+define( 'NEXT_PAGE', 		'Next' );
+define( 'NAV_TPL',		'<li><a href="{url}">{page}</a></li>' );
 
 
 /**
@@ -2280,10 +2286,35 @@ function formatPost( $conf, $htpl, $atpl, $post ) {
 }
 
 /**
- *  TODO: Navigation links
+ *  Next/Previous navigation links
  */
-function navPage( $page, $count ) {
+function navPage( $conf, $page, $count ) {
+	$pm	= $page - 1;
+	$pp	= $page + 1;
+	$lm	= $conf['page_limit'];
+	$root	= getRoot( $conf );
 	
+	$out	= '';
+	
+	// If we're past the first page, add previous page link
+	if ( $pm > 0 ) {
+		$out .= 
+		\strtr( NAV_TPL, [
+			'{url}' 	=> $root . 'page' . $pm,
+			'{page}'	=> PREV_PAGE
+		] );
+	}
+	
+	// If we're at the page limit, add the next page link
+	if ( $count >= $lm ) {
+		$out .= 
+		\strtr( NAV_TPL, [
+			'{url}'	=> $root . 'page' . $pp,
+			'{page}'	=> NEXT_PAGE
+		] );
+	}
+	
+	return $out;
 }
 
 
@@ -2293,11 +2324,12 @@ function navPage( $page, $count ) {
 function indexView(
 	array		$conf,
 	array		$results,
+	int		$page		= 1,
 	bool		$feed		= false,
 	bool		$admin		= false
 ) {
 	$root		= getRoot( $conf );
-	$html		= 
+	return
 	\strtr( $theme, [
 		'{theme}'		=> getTheme( $conf, $feed, $admin ),
 		'{date_gen}'		=> rfcDate(),
@@ -2307,9 +2339,78 @@ function indexView(
 		'{manage}'		=> $root . 'manage',
 		'{copyright}'		=> $conf['copyright'],
 		'{page_body}'		=> 
-		formatPosts( $conf, $results, $feed, $admin )
+		formatPosts( $conf, $results, $feed, $admin ),
+		'{navpages}'		=> 
+		navPage( $conf, $page, count( $results ) );
 	] );
 }
+
+
+
+
+/**
+ *  Page routing
+ */
+
+/**
+ *  Paths are sent in bare. Make them suitable for matching.
+ *  
+ *  @param string $route URL path in plain format
+ *  @return string Route in regex format
+ */
+function cleanRoute( $k, $v, $route ) {
+	$route	= str_replace( $k, $v, $route );
+	$regex	= str_replace( '.', '\.', $route );
+	return '@^/' . $route . '/?$@i';
+}
+
+/**
+ *  Filter path parameters to get rid of numeric indexes
+ */
+function filterParams( $params ) {
+	\array_shift( $params );
+	return \array_filter( 
+		$params, 
+		function( $k ) {
+			return \is_string( $k );
+		}, \ARRAY_FILTER_USE_KEY 
+	);
+}
+
+/**
+ *  Route the current path according to the specified callback map
+ */
+function route( array $routes, array $markers ) {
+	$verb		= strtolower( $_SERVER['REQUEST_METHOD'] );
+	$path		= $_SERVER['REQUEST_URI'];
+	
+	$k		= array_keys( $markers );
+	$v		= array_values( $markers );
+	$found		= false;
+	
+	foreach( $routes as $map ) {
+		if ( $map[0] != $verb ) {
+			continue;
+		}
+		$rx = cleanRoute( $k, $v, $map[1] );
+		if ( preg_match( $rx, $path, $params ) ) {
+			$found	= true;
+			if ( is_callable( $map[2] ) ) {
+				$params		= filterParams( $params );
+				$params['method']	= $verb;
+				\call_user_func( $map[2], $params );
+				break;
+			}
+		}
+	}
+	
+	if ( !$found ) {
+		die( 'Not found' );
+	}
+	
+	die();
+}
+
 
 
 
@@ -2340,8 +2441,8 @@ function homepage( array $route, bool $feed = false ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	
-	
-	send( 200, indexView( $conf, $results, $feed ) );
+	$page		= ( int ) ( $data['page'] ?? 1 );
+	send( 200, indexView( $conf, $results, $page, $feed ) );
 }
 
 /**
@@ -2394,7 +2495,8 @@ function archive( array $route ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	
-	send( 200, indexView( $conf, $results ) );
+	$page		= ( int ) ( $data['page'] ?? 1 );
+	send( 200, indexView( $conf, $results, $page ) );
 }
 
 /**
@@ -3126,3 +3228,17 @@ function doConfig( array $route ) {
 	send( 200, 'manage/settings' );
 }
 
+/**
+ *  Pad start
+ */
+function begin() {
+	$conf	= settings();
+
+	// Begin routing
+	route( $conf['routes'], $conf['markers'] );
+}
+
+
+begin();
+
+// End file
