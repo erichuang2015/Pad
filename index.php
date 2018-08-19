@@ -684,6 +684,34 @@ function findPostsArchive( array $data ) : array {
 }
 
 /**
+ *  Full text post search
+ */
+function findPostBySearch( int $page, string $search ) : array {
+	$conf	= settings();
+	$limit	= ( int ) ( $conf['page_limit'] ?? 15 );
+	$ssql	= 
+	"SELECT docid FROM post_search WHERE body 
+		MATCH :search LIMIT :limit OFFSET :offset";
+	
+	// Get document ids ( post ids ) from search results
+	$ids	= getResults( $sql, [ ':search' => $search ];
+	if ( empty( $ids ) ) {
+		return [];
+	}
+	
+	// Generate parameters
+	$param = [];
+	foreach( $ids as $id ) {
+		$param[':id_' . $id] = $id;
+	}
+	
+	$keys	= implode( ', ', array_keys( $param ) );
+	$sql	= "SELECT * FROM index_view WHERE id IN ( $keys )";
+	
+	return getResults( $sql, $param );
+}
+
+/**
  *  Apply tags to given post
  */
 function setTags( int $id, array $tags ) {
@@ -2326,7 +2354,8 @@ function indexView(
 	array		$results,
 	int		$page		= 1,
 	bool		$feed		= false,
-	bool		$admin		= false
+	bool		$admin		= false,
+	string		$search	= ''
 ) {
 	$root		= getRoot( $conf );
 	return
@@ -2337,6 +2366,7 @@ function indexView(
 		'{tagline}'		=> $conf['tagline'],
 		'{home}'		=> $root,
 		'{manage}'		=> $root . 'manage',
+		'{search}'		=> $search,
 		'{copyright}'		=> $conf['copyright'],
 		'{page_body}'		=> 
 		formatPosts( $conf, $results, $feed, $admin ),
@@ -2595,7 +2625,7 @@ function viewTag( array $route ) {
 }
 
 /**
- *  TODO: Searching pages
+ *  Searching pages
  */
 function search( array $route ) {
 	$data		= 
@@ -2611,7 +2641,17 @@ function search( array $route ) {
 		'search' => \FILTER_SANITIZE_FULL_SPECIAL_CHARS
 	] );
 	
-	send( 200, 'Post search' );
+	$search	= $data['search'];
+	$page		= ( int ) ( $data['page'] ?? 1 );
+	$results	= findPostBySearch( $page, $search );
+	
+	if ( empty( $results ) ) {
+		send( 404, MSG_NOTFOUND );
+	}
+	
+	send( 200, indexView( 
+		$conf, $results, $page, false, false, $search
+	) );
 }
 
 /**
