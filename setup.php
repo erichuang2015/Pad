@@ -70,6 +70,26 @@ HTML
 define( 'INCLUDED', 1 );
 require( 'config.php' );
 
+
+/**
+ *  Setup output environment
+ */
+
+// Clear unneded headers
+\header_remove( 'X-Powered-By' );
+
+// Setup content type
+\header( 'Content-Type: text/html; charset=utf-8', true );
+
+// Add Anti-XSS headers
+\header( 'X-XSS-Protection: 1; mode=block', true );
+\header( 'X-Content-Type-Options: nosniff', true );
+\header( 'X-Frame-Options: deny', true );
+\header( "Content-Security-Policy: default-src 'self'; frame-ancestors 'none'", true );
+
+/**
+ *  Begin database setup and tests
+ */
 try {
 	// Database options
 	$opts	= [
@@ -103,6 +123,9 @@ if ( $stm->execute() ) {
 	die( ERROR_QUERY );
 }
 
+/**
+ *  Begin credential setup and tests
+ */
 // New user ID
 $uid	= 0;
 $pass	= '';
@@ -124,16 +147,17 @@ try {
 	die( ERROR_PHP );
 }
 	
-// Create default account
+// Create default account with admin status
 $stm	= 
 $db->prepare( 
-	"INSERT INTO users ( username, password ) 
-		VALUES( :username, :password )";
+	"INSERT INTO users ( username, password, status ) 
+		VALUES( :username, :password, :status )";
 );
 
 if ( $stm->execute( [
-	':username'	=> DEFAULT_USER
-	':password'	=> $pass
+	':username'	=> DEFAULT_USER,
+	':password'	=> $pass,
+	':status'	=> AUTH_ADMIN
 ] ) ) {
 	$uid = $db->lastInsertId();
 }
