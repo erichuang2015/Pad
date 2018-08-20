@@ -427,10 +427,8 @@ function getDb() {
 	}
 	
 	$opts	= [
-		\PDO::ATTR_TIMEOUT		=> 
-			\DATA_TIMEOUT,
-		\PDO::ATTR_DEFAULT_FETCH_MODE	=> 
-			\PDO::FETCH_ASSOC,
+		\PDO::ATTR_TIMEOUT		=> \DATA_TIMEOUT,
+		\PDO::ATTR_DEFAULT_FETCH_MODE	=> \PDO::FETCH_ASSOC,
 		\PDO::ATTR_PERSISTENT		=> false,
 		\PDO::ATTR_EMULATE_PREPARES	=> false,
 		\PDO::ATTR_ERRMODE		=> 
@@ -533,11 +531,8 @@ function findPostByIdSlug( int $id, string $slug ) : array {
 	"SELECT * FROM page_view 
 		WHERE id = :id AND slug = :slug LIMIT 1;";
 	
-	$data	= getResults( $sql, [ ':id' => $id, ':slug' => $slug ] );
-	if ( empty( $data ) ) {
-		return $data[0];
-	}
-	return [];
+	return 
+	getSingle( $sql, [ ':id' => $id, ':slug' => $slug ] );
 }
 
 /**
@@ -547,12 +542,24 @@ function findPostByPermalink( string $link ) : array {
 	$sql	=
 	"SELECT * FROM page_view 
 		WHERE permalink = :link LIMIT 1;";
+		
+	return getSingle( $sql, [ ':link' => $link ] );
+}
+
+/**
+ *  Get post sibling posts
+ */
+function findPostSiblings( int $prev, int $next ) {
+	$out	= [];
 	
-	$data	= getResults( $sql, [ ':link' => $link ] );
-	if ( empty( $data ) ) {
-		return $data[0];
+	if ( $prev > 0 ) {
+		$out[] = findPreviewById( $prev );
 	}
-	return [];
+	if ( $next > 0 ) {
+		$out[] = findPreviewById( $next );
+	}
+	
+	return $out;
 }
 
 /**
@@ -2283,6 +2290,22 @@ function navPage( $conf, $page, $count ) {
 	return $out;
 }
 
+/**
+ *  Format links to neighboring pages
+ */
+function siblingPages( $conf, array $siblings ) {
+	$root	= rtrim( getRoot( $conf ), '/' );
+	$out	= '';
+	foreach( $siblings as $s ) {
+		$out .= \strtr( NAV_TPL [
+			'{url}'	=> $root . $s['permalink'],
+			'{page}'	=> $s['title']
+		] );
+	}
+	
+	return $out;
+}
+
 
 /**
  *  List / Index / Archive page format helper
@@ -2309,7 +2332,7 @@ function indexView(
 		'{page_body}'		=> 
 		formatPosts( $conf, $results, $feed, $admin ),
 		'{navpages}'		=> 
-		navPage( $conf, $page, count( $results ) );
+		navPage( $conf, $page, count( $results ) )
 	] );
 }
 
@@ -2544,15 +2567,45 @@ function viewPage( array $route ) {
 	$atpl			= getTemplate( $conf, 'authorfrag' );
 	$root			= getRoot( $conf );
 	
-	$post['site_title']	= $post['title'] . ' - ' . $conf['title'];
-	$post['page_title']	= $conf['title'];
-	$post['tagline']	= $conf['tagline'];
-	$post['root']		= $root;
-	$post['page_url']	= $root;
-	$post['manage']	= $root . 'manage';
-	$post['theme']	= getTheme( $conf ) . '/';
+	$tpl			= [
+		'{site_title}'=> $post['title'] . ' - ' . $conf['title'],
+		'{page_title}'=> $conf['title'],
+		'{tagline}'	=> $conf['tagline'],
+		'{root}'	=> $root,
+		'{page_url}'	=> $root,
+		'{manage}'	=> $root . 'manage',
+		'{theme}'	=> getTheme( $conf ) . '/',
+		'{post_edit}' => $root . $post['post_edit'],
+		'{copyright}'	=> $conf['copyright']
+	];
 	
-	send( 200, formatPost( $conf, $htpl, $atpl, $post ) );
+	// Apply author template
+	$tpl['{author}']	= 
+	\strtr( $atpl, [ 
+		'{name}'	=> $post['author'],
+		'{parmalink}'	=> \rtrim( $root, '/' ) . 
+					$post['authorlink']
+	] );
+	
+	// Filter and display content
+	$tpl['{body}']	=> html( $post['body'] );
+	
+	// Find neighboring pages
+	$siblings		= 
+	findPostSiblings( 
+		$post['prev_id'] ?? 0,
+		$post['next_id'] ?? 0
+	);
+	
+	// Have neighbors?
+	if ( count( $siblings ) ) {
+		$post['{navpages}']	= 
+			siblingPages( $conf, $siblings );
+	} else {
+		$post['{navpages}']	= '';
+	}
+	
+	send( 200, \strtr( $htpl, $tpl ) );
 }
 
 /**
@@ -2780,7 +2833,7 @@ function doEditPage( array $route ) {
 }
 
 /**
- *  View user profile page
+ *  TODO: View user profile page
  */
 function viewProfile( array $route ) {
 	$user		= authUser();
@@ -2792,7 +2845,7 @@ function viewProfile( array $route ) {
 }
 
 /**
- *  Change user profile page
+ *  TODO: Change user profile page
  */
 function doProfile( array $route ) {
 	$user		= authUser();
