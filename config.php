@@ -37,6 +37,14 @@ define( 'THEME_DIR',		'themes/' );
 define( 'SKIP_LOCAL',		true );
 
 
+/**
+ *  User authorization levels
+ */
+define( 'AUTH_ADMIN',		99 );
+define( 'AUTH_EDITOR',	10 );
+define( 'AUTH_USER',		0 );
+define( 'AUTH_BANNED',	-1 );
+
 
 
 
