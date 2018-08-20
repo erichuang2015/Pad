@@ -1560,7 +1560,30 @@ function checkedCheckbox( $value ) {
 	return $ch ? 'checked' : '';
 }
 
+/**
+ *  Helper to check if a block of text contains a term
+ */
+function txtHas( string $haystack, string $term ) {
+	return \strpos( $tpl, '{navpages}' ) !== false;
+}
 
+/**
+ *  Create a list of additional placeholders in the given template
+ */
+function tplFeatures( string $tpl ) {
+	return [
+		'author'	=> txtHas( $tpl, '{author}' ),
+		'postfrag'	=> txtHas( $tpl, '{postfrag}' ),
+		'navpages'	=> txtHas( $tpl, '{navpages}'),
+		'siblings'	=> txtHas( $tpl, '{siblings}'),
+		'related'	=> txtHas( $tpl, '{related}' ),
+		'sidebar'	=> txtHas( $tpl, '{sidebar}' ),
+		'heading'	=> txtHas( $tpl, '{heading}' ),
+		'footer'	=> txtHas( $tpl, '{footer}' ),
+		'copyright'	=> txtHas( $tpl, '{copyright}' ),
+		'menu'		=> txtHas( $tpl, '{menu}' )
+	];
+}
 
 
 /**
@@ -2361,6 +2384,7 @@ function siblingPages( $conf, array $siblings ) {
  *  List / Index / Archive page format helper
  */
 function indexView(
+	string		$theme,
 	array		$conf,
 	array		$results,
 	int		$page		= 1,
@@ -2482,8 +2506,9 @@ function homepage( array $route, bool $feed = false ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	
+	$theme		= getTemplate( $conf, 'home', $feed, false );
 	$page		= ( int ) ( $data['page'] ?? 1 );
-	send( 200, indexView( $conf, $results, $page, $feed ) );
+	send( 200, indexView( $theme, $conf, $results, $page, $feed ) );
 }
 
 /**
@@ -2536,8 +2561,9 @@ function archive( array $route ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	
+	$theme		= getTemplate( $conf, 'home', $feed, false );
 	$page		= ( int ) ( $data['page'] ?? 1 );
-	send( 200, indexView( $conf, $results, $page ) );
+	send( 200, indexView( $theme, $conf, $results, $page ) );
 }
 
 /**
@@ -2612,10 +2638,12 @@ function viewPage( array $route ) {
 	if ( empty( $post ) ) {
 		send( 404, MSG_NOTFOUND );
 	}
-	
+	 
 	$htpl			= getTemplate( $conf, 'post' );
-	$atpl			= getTemplate( $conf, 'authorfrag' );
 	$root			= getRoot( $conf );
+	
+	// Template features
+	$tfeat			= tplFeatures( $htpl );
 	
 	$tpl			= [
 		'{site_title}'=> $post['title'] . ' - ' . $conf['title'],
@@ -2625,36 +2653,45 @@ function viewPage( array $route ) {
 		'{page_url}'	=> $root,
 		'{manage}'	=> $root . 'manage',
 		'{theme}'	=> getTheme( $conf ) . '/',
-		'{post_edit}' => $root . $post['post_edit'],
-		'{copyright}'	=> $conf['copyright']
+		'{post_edit}' => $root . $post['post_edit']
 	];
 	
-	// Apply author template
-	$tpl['{author}']	= 
-	\strtr( $atpl, [ 
-		'{name}'	=> $post['author'],
-		'{parmalink}'	=> \rtrim( $root, '/' ) . 
+	if ( $tfeat['copyright'] ) {
+		'{copyright}'	=> $conf['copyright']
+	} 
+	
+	// Has author feature
+	if ( $tfeat['author'] ) {
+		// Apply author template
+		$atpl			= getTemplate( $conf, 'authorfrag' );
+		$tpl['{author}']	= 
+		\strtr( $atpl, [ 
+			'{name}'	=> $post['author'],
+			'{parmalink}'	=> \rtrim( $root, '/' ) . 
 					$post['authorlink']
-	] );
+		] );
+	}
 	
 	// Filter and display content
 	$tpl['{body}']	=> html( $post['body'] );
 	
-	// Find neighboring pages
-	$siblings		= 
-	findPostSiblings( 
-		$post['prev_id'] ?? 0,
-		$post['next_id'] ?? 0
-	);
-	
-	// Have neighbors?
-	if ( count( $siblings ) ) {
-		$post['{navpages}']	= 
-			siblingPages( $conf, $siblings );
-	} else {
-		$post['{navpages}']	= '';
+	// Has siblings feature
+	if ( $tfeat['siblings'] ) {
+		// Find neighboring pages
+		$siblings		= 
+		findPostSiblings( 
+			$post['prev_id'] ?? 0,
+			$post['next_id'] ?? 0
+		);
+		
+		// Have neighbors?
+		if ( count( $siblings ) ) {
+			$post['{siblings}']	= 
+				siblingPages( $conf, $siblings );
+		} else {
+			$post['{siblings}']	= '';
+		}
 	}
-	
 	send( 200, \strtr( $htpl, $tpl ) );
 }
 
@@ -2690,8 +2727,9 @@ function search( array $route ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	
+	$theme		= getTemplate( $conf, 'home', $feed, false );
 	send( 200, indexView( 
-		$conf, $results, $page, false, false, $search
+		$theme, $conf, $results, $page, false, false, $search
 	) );
 }
 
@@ -2929,7 +2967,7 @@ function viewLogin( array $route ) {
 		'{root}'	=> $root,
 		'{theme}'	=> getTheme( $conf ),
 		'{csrf}'	=> getCsrf( 'login' ),
-		'{action}'	=> $root . 'login';
+		'{action}'	=> $root . 'login'
 	];
 	
 	send( 200, \strtr( $theme, $tpl ) );
@@ -3017,7 +3055,7 @@ function viewRegister( array $route ) {
 		'{root}'	=> $root,
 		'{theme}'	=> getTheme( $conf ),
 		'{csrf}'	=> getCsrf( 'register' ),
-		'{action}'	=> $root. 'register';
+		'{action}'	=> $root. 'register'
 	];
 	
 	send( 200, \strtr( $theme, $tpl ) );
@@ -3084,7 +3122,7 @@ function viewChPass( array $route ) {
 		'{root}'	=> $root,
 		'{theme}'	=> getTheme( $conf ),
 		'{csrf}'	=> getCsrf( 'chpassword' ),
-		'{action}'	=> $root . 'changepass';
+		'{action}'	=> $root . 'changepass'
 	];
 	
 	send( 200, \strtr( $theme, $tpl ) );
@@ -3157,6 +3195,7 @@ function viewConfig( array $route ) {
 	$root		= getRoot( $conf );
 	
 	$tpl		= [
+		'{csrf}'	=> getCsrf( 'settings' ),
 		'{theme}'	=> getAdminTheme(),
 		'{action}'	=> $root . 'manage/settings',
 		'{post_list}'	=> $root,
@@ -3337,13 +3376,6 @@ function notfound() {
 	$theme		= getTemplate( $conf, 'notfound' );
 	$root		= getRoot( $conf );
 	
-	$tpl		= [
-		'{theme}'		=> getTheme(),
-		'{settings}'		=> $root . 'manage/settings',
-		'{page_title}'	=> $conf['title'],
-		'{tagline}'		=> $conf['tagline'],
-		'{copyright}'		=> $conf['copyright']
-	];
 	$tpl			= [
 		'{page_title}'=> $conf['title'],
 		'{tagline}'	=> $conf['tagline'],
