@@ -1533,7 +1533,7 @@ function html( $value ) {
 	
 	// Iterate through every HTML element 
 	foreach( $domBody->childNodes as $node ) {
-			scrub( $node, $white, $flush );
+		scrub( $node, $white, $flush );
 	}
 	
 	// Apply Markdown formatting
@@ -2104,6 +2104,13 @@ function httpCode(
 	\header( $proto . ' ' . $code . ' ' . $msg, true );
 }
 
+/**
+ *  Current website with protocol prefix
+ */
+function website() {
+	$url	= isSecure() ? 'https://' : 'http://';
+	return $url . $_SERVER['SERVER_NAME'];
+}
 
 /**
  *  Print headers, content, and end execution
@@ -2124,7 +2131,7 @@ function sendLogin( $conf, $redir = '' ) {
 	$path = getRoot( $conf ) . 'login/';
 	
 	// Password didn't match resend path with 
-	redirect( 401, $path . $redir );	
+	redirect( 401, $path . website() . $redir );
 }
 
 /**
@@ -2136,7 +2143,18 @@ function redirect(
 ) {
 	\ob_end_clean();
 	$conf	= settings();
-	$path	= getRoot( $conf ) . $path;
+	
+	$url	= parse_url( $path );
+	$host	= $url['host'] ?? '';
+	
+	// Arbitrary redirect attempt?
+	if ( $host != $_SERVER['SERVER_NAME'] ) {
+		die( 'Invalid URL' );
+	}
+	
+	
+	$path	= getRoot( $conf ) . $url['path'] ?? '';
+	
 	
 	// Directory traversal
 	$path	= \preg_replace( '/\.{2,}', '.', $path );
@@ -2218,22 +2236,24 @@ function timezoneSelect( $selected ) : string {
 	
 	$offsets	= [];
 	foreach( $zones as $tz ) {
-		$t	= new \DateTimeZone( $tz );
+		$t		= new \DateTimeZone( $tz );
 		$offsets[$t]	= $tz->getOffset( new \DateTime );
 	}
 	
 	\asort( $offsets );
-	$out		= '<select name="timezone" id="timezone">';
+	$out		= 
+	'<select name="timezone" id="timezone" required>';
 	
 	foreach( $offsets as $tz => $offset ) {
 		$prefix	= ( $offset < 0 ) ? '-' : '+';
-		$format	= gmdate( 'H:i', abs( $offset ) );
+		$format	= \gmdate( 'H:i', \abs( $offset ) );
 		$nice		= "UTC${prefix}${format}";
 		$out		.=
 		$tz == $selected ? 
 		"<option value=\"{$tz}\" selected>${nice} $tz</option>" :
 		"<option value=\"{$tz}\">${nice} $tz</option>";
 	}
+	
 	return $out . '</select>';
 }
 
@@ -2360,9 +2380,9 @@ function indexView(
 		'{search}'		=> $search,
 		'{copyright}'		=> $conf['copyright'],
 		'{page_body}'		=> 
-		formatPosts( $conf, $results, $feed, $admin ),
+			formatPosts( $conf, $results, $feed, $admin ),
 		'{navpages}'		=> 
-		navPage( $conf, $page, count( $results ) )
+			navPage( $conf, $page, count( $results ) )
 	] );
 }
 
@@ -2761,7 +2781,7 @@ function editPage( array $route ) {
 				'default'	=> 0
 			]
 		]
-	);
+	] );
 	
 	$id		= ( int ) ( $data['id'] ?? 0 );
 	if ( empty( $id ) ) {
@@ -2921,8 +2941,7 @@ function viewLogin( array $route ) {
 function doLogin( array $route ) {
 	$form		= 
 	\filter_input_array( \INPUT_POST, [
-		'csrf'		=> 
-		\FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'csrf'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'redir'	=> [
 			'fliter'	=> \FILTER_VALIDATE_URL,
 			'flags'	=> 
