@@ -2664,7 +2664,7 @@ function newPage( array $route ) {
 	$tpl			= [
 		'{theme}'	=> getAdminTheme(),
 		'{action}'	=> $root . 'manage',
-		'{post_list}'	=> $root . 'manage/posts',
+		'{post_list}'	=> $root,
 		'{help}'	=> $root . 'manage/help.html',
 		'{settings}'	=> $root . 'manage/settings',
 		'{id}'		=> 0,
@@ -2763,14 +2763,15 @@ function editPage( array $route ) {
 	$tpl			= [
 		'{theme}'	=> getAdminTheme(),
 		'{action}'	=> $root . 'manage/edit/' . $post['id'],
-		'{post_list}'	=> $root . 'manage/posts',
+		'{post_list}'	=> $root,
 		'{help}'	=> $root . 'manage/help.html',
 		'{settings}'	=> $root . 'manage/settings',
 		'{id}'		=> $post['id'],
 		'{slug}'	=> $post['slug'],
 		'{published}'	=> rfcDate( $post['published'] ),
 		'{body}'	=> pacify( $post['body'] ),
-		'{delete}'	= getTemplate( $conf, 'deletefrag', false, true )
+		'{delete}'	= 
+		getTemplate( $conf, 'deletefrag', false, true )
 	];
 	
 	send( 200, \strtr( $theme, $tpl ) );
@@ -3109,7 +3110,7 @@ function viewConfig( array $route ) {
 	$tpl		= [
 		'{theme}'	=> getAdminTheme(),
 		'{action}'	=> $root . 'manage/settings',
-		'{post_list}'	=> $root . 'manage/posts',
+		'{post_list}'	=> $root,
 		'{help}'	=> $root . 'manage/help.html',
 		'{settings}'	=> $root . 'manage/settings',
 		'{title}'	=> $conf['title'],
