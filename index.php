@@ -1555,10 +1555,10 @@ function checkedCheckbox( $value ) {
 }
 
 /**
- *  Helper to check if a block of text contains a term
+ *  Helper to check if a template contains a placeholder term
  */
-function txtHas( string $haystack, string $term ) {
-	return \strpos( $tpl, $term ) !== false;
+function tplHas( string $haystack, string $term ) {
+	return \strpos( $tpl, '{' . $term . '}' ) !== false;
 }
 
 /**
@@ -2630,12 +2630,12 @@ function viewPage( array $route ) {
 	];
 	
 	// Has copyright feature
-	if ( txtHas( $htpl, 'copyright' ) ) {
+	if ( tplHas( $htpl, 'copyright' ) ) {
 		'{copyright}'	=> html( $conf['copyright'] );
 	} 
 	
 	// Has author feature
-	if ( ttxtHas( $htpl, 'author' ) ) {
+	if ( tplHas( $htpl, 'author' ) ) {
 		// Apply author template
 		$atpl			= getTemplate( $conf, 'authorfrag' );
 		$tpl['{author}']	= 
@@ -2647,12 +2647,12 @@ function viewPage( array $route ) {
 	}
 	
 	// Filter and display content
-	if ( txtHas( $htpl, 'body' ) ) {
+	if ( tplHas( $htpl, 'body' ) ) {
 		$tpl['{body}']	=> html( $post['body'] );
 	}
 	
 	// Has siblings feature
-	if ( txtHas( $htpl, 'siblings' ) ) {
+	if ( tplHas( $htpl, 'siblings' ) ) {
 		// Find neighboring pages
 		$siblings		= 
 		findPostSiblings( 
@@ -2914,11 +2914,12 @@ function viewProfile( array $route ) {
 	} else {
 		$data		= findUserByUsername( $name )
 	}
+	
 	if ( empty( $data ) ) {
 		notfound();
 	}
 	
-	// If viewing another user and this is an editor, send form
+	// If viewing another user or this is an editor, send form
 	if ( 
 		( $id == $user['id'] )	||
 		( $user['status'] >= AUTH_EDITOR )
@@ -2940,15 +2941,15 @@ function viewProfile( array $route ) {
 	
 	// TODO: User status editor
 	if ( $user['status'] >= AUTH_EDITOR ) {
-		if ( txtHas( $htpl, 'ustatus' ) ) {
+		if ( tplHas( $htpl, 'ustatus' ) ) {
 			//
 		}
 	}
 	
 	// Form view
 	if ( 
-		txtHas( $htpl, 'action' )	&& 
-		txtHas( $htpl, 'csrf' )
+		tplHas( $htpl, 'action' )	&& 
+		tplHas( $htpl, 'csrf' )
 	) {
 		$tpl['{csrf}']	= getCsrf( 'profile' );
 		$tpl['{bio}']		= $data['bio'];
