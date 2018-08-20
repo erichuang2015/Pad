@@ -11,6 +11,7 @@ define( 'MSG_PASSMATCH', 	'Passwords must match' );
 define( 'MSG_PASSERROR',	'Password error' );
 define( 'MSG_LOGINERROR',	'Login error' );
 define( 'MSG_FORMEXP',	'Form expired' );
+define( 'MSG_DENIED',		'Permission to access or modify this resource is denied' );
 
 /**
  *  Pagination
@@ -55,7 +56,6 @@ define( 'COOKIE_EXP', 	86400 );
 define( 'COOKIE_PATH',	'/' );
 
 
-
 /**
  *  Default content security policy is to restrict everything to 
  *  the current host
@@ -84,16 +84,6 @@ define(
 define( 'RX_XSS2',		'/(<(s(?:cript|tyle)).*?)/ism' );
 define( 'RX_XSS3',		'/(document\.|window\.|eval\(|\(\))/ism' );
 define( 'RX_XSS4',		'/(\\~\/|\.\.|\\\\|\-\-)/sm' );
-
-
-/**
- *  User authorization levels
- */
-define( 'AUTH_ADMIN',		99 );
-define( 'AUTH_EDITOR',	10 );
-define( 'AUTH_USER',		0 );
-define( 'AUTH_BANNED',	-1 );
-
 
 
 
@@ -930,6 +920,9 @@ function passNeedsRehash(
  *  Check for deletion request and confirmation
  */
 function postDeleteCheck( $data ) {
+	$conf	= settings();
+	$root	= getRoot( $conf );
+	
 	// Delete check
 	if ( !$data['delete'] && !$data['delconf'] ) {
 		return;
@@ -937,17 +930,16 @@ function postDeleteCheck( $data ) {
 	
 	// Nothing to delete
 	if ( empty( $data['id'] ) ) {
-		redirect( 200, 'manage' );
+		redirect( 200, website() . $root . 'manage' );
 	} else {
 		$post = 
 		findPreviewById( ( int ) $data['id'] );
 		
 		// Delete requested, but nothing to delete?
 		if ( empty( $post ) ) {
-			redirect( 200, 'manage' );
-		}
-		
-		
+			notfound();
+			// redirect( 200, website() . $root . 'manage' );
+		}	
 	}
 }
 
@@ -982,9 +974,11 @@ function postForm( array $filter, array $user ) {
 		$data['user_id'] = $user['id'];
 	}
 	
-	$post = savePost( $data );
+	$conf	= settings();
+	$root	= getRoot( $conf );
+	$post	= savePost( $data );
 	
-	redirect( 200, $post['id'] . '/' . $post['slug'] );
+	redirect( 200, website() . $root . $post['id'] . '/' . $post['slug'] );
 }
 
 
@@ -1564,25 +1558,33 @@ function checkedCheckbox( $value ) {
  *  Helper to check if a block of text contains a term
  */
 function txtHas( string $haystack, string $term ) {
-	return \strpos( $tpl, '{navpages}' ) !== false;
+	return \strpos( $tpl, $term ) !== false;
 }
 
 /**
- *  Create a list of additional placeholders in the given template
+ *  Check for placeholders in the given template
  */
-function tplFeatures( string $tpl ) {
-	return [
-		'author'	=> txtHas( $tpl, '{author}' ),
-		'postfrag'	=> txtHas( $tpl, '{postfrag}' ),
-		'navpages'	=> txtHas( $tpl, '{navpages}'),
-		'siblings'	=> txtHas( $tpl, '{siblings}'),
-		'related'	=> txtHas( $tpl, '{related}' ),
-		'sidebar'	=> txtHas( $tpl, '{sidebar}' ),
-		'heading'	=> txtHas( $tpl, '{heading}' ),
-		'footer'	=> txtHas( $tpl, '{footer}' ),
-		'copyright'	=> txtHas( $tpl, '{copyright}' ),
-		'menu'		=> txtHas( $tpl, '{menu}' )
-	];
+function tplFeature( string $tpl, string $test ) {
+	static $check		= [];
+	
+	// Preload check
+	$id			= hash( 'sha256', $tpl );
+	
+	// Already checked?
+	if ( isset( $check[$id][$test] ) ) {
+		return $check[$id][$test];
+	}
+	
+	// Already checked?
+	if ( !isset( $check[$id] ) ) {
+		$check[$id]	= [];
+	}
+	
+	
+	$check[$id][$test]	= 
+	txtHas( $check[$id], '{' . $test . '}' ) ? true : false;
+	
+	return $check[$id][$test];
 }
 
 
@@ -2154,7 +2156,7 @@ function sendLogin( $conf, $redir = '' ) {
 	$path = getRoot( $conf ) . 'login/';
 	
 	// Password didn't match resend path with 
-	redirect( 401, $path . website() . $redir );
+	redirect( 401, website() . $path . $redir );
 }
 
 /**
@@ -2642,8 +2644,6 @@ function viewPage( array $route ) {
 	$htpl			= getTemplate( $conf, 'post' );
 	$root			= getRoot( $conf );
 	
-	// Template features
-	$tfeat			= tplFeatures( $htpl );
 	
 	$tpl			= [
 		'{site_title}'=> $post['title'] . ' - ' . $conf['title'],
@@ -2656,12 +2656,13 @@ function viewPage( array $route ) {
 		'{post_edit}' => $root . $post['post_edit']
 	];
 	
-	if ( $tfeat['copyright'] ) {
-		'{copyright}'	=> $conf['copyright']
+	// Has copyright feature
+	if ( tplFeature( $htpl, 'copyright' ) ) {
+		'{copyright}'	=> html( $conf['copyright'] );
 	} 
 	
 	// Has author feature
-	if ( $tfeat['author'] ) {
+	if ( tplFeature( $htpl, 'author' ) ) {
 		// Apply author template
 		$atpl			= getTemplate( $conf, 'authorfrag' );
 		$tpl['{author}']	= 
@@ -2673,10 +2674,12 @@ function viewPage( array $route ) {
 	}
 	
 	// Filter and display content
-	$tpl['{body}']	=> html( $post['body'] );
+	if ( tplFeature( $htpl, 'body' ) ) {
+		$tpl['{body}']	=> html( $post['body'] );
+	}
 	
 	// Has siblings feature
-	if ( $tfeat['siblings'] ) {
+	if ( tplFeature( $htpl, 'siblings' ) ) {
 		// Find neighboring pages
 		$siblings		= 
 		findPostSiblings( 
@@ -2922,19 +2925,74 @@ function doEditPage( array $route ) {
 }
 
 /**
- *  TODO: View user profile page
+ *  View user profile page
  */
 function viewProfile( array $route ) {
 	$user		= authUser();
 	$conf		= settings();
-	if ( empty( $user ) ) {
-		sendLogin( $conf, 'profile' );
+	
+	// User id from route
+	$id		= ( int ) $route['id'];
+	$name		= $route['user'] ?? '';
+	
+	// Check if user exists
+	if ( empty( $name ) ) {
+		$data		= findUserById( $id );
+	} else {
+		$data		= findUserByUsername( $name )
 	}
+	if ( empty( $data ) ) {
+		notfound();
+	}
+	
+	// If viewing another user and this is an editor, send form
+	if ( 
+		( $id == $user['id'] )	||
+		( $user['status'] >= AUTH_EDITOR )
+	) {
+		$htpl		= getTemplate( $conf, 'bioedit' );
+	
+	// If not, send public profile
+	} else {
+		$htpl		= getTemplate( $conf, 'bio' );
+	}
+	
+	// Template basics
+	$root		= getRoot( $conf );
+	$tpl		= [
+		'{page_title}'=> $conf['title'],
+		'{root}'	=> $root,
+		'{theme}'	=> getTheme( $conf )
+	];
+	
+	// TODO: User status editor
+	if ( $user['status'] >= AUTH_EDITOR ) {
+		if ( tplFeature( $htpl, 'ustatus' ) ) {
+			//
+		}
+	}
+	
+	// Form view
+	if ( 
+		tplFeature( $htpl, 'action' )	&& 
+		tplFeature( $htpl, 'csrf' )
+	) {
+		$tpl['{csrf}']	= getCsrf( 'profile' );
+		$tpl['{bio}']		= $data['bio'];
+		$tpl['{action}']	= 
+			$root . 'profile/' . $id . '/' . 
+			username( $data['username'] );
+	// HTML view
+	} else {
+		$tpl['{bio}']		= html( $data['bio'] );
+	}
+	
+	send( 200, \strtr( $htpl, $tpl ) );
 	
 }
 
 /**
- *  TODO: Change user profile page
+ *  Changing user profile page
  */
 function doProfile( array $route ) {
 	$user		= authUser();
@@ -2943,7 +3001,49 @@ function doProfile( array $route ) {
 		sendLogin( $conf, 'profile' );
 	}
 	
+	// User id from route
+	$id		= ( int ) $route['id'];
 	
+	// If editing another user and this isn't an editor
+	if ( 
+		( $id != $user['id'] )		&&
+		( $user['status'] < AUTH_EDITOR )
+	) {
+		send( 403, MSG_DENIED );
+	}
+	
+	$form		= 
+	\filter_input_array( \INPUT_POST, [
+		'csrf'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'id'		=> [
+			'filter'	=> \FILTER_VALIDATE_INT
+			'options'	=> [
+				'min_range'	=> 1, 
+				'default'	=> 0
+			]
+		],
+		'display'	=> [
+			'filter'	=> \FILTER_CALLBACK,
+			'options'	=> 'username'
+		],
+		'status'	=> [
+			'filter'	=> \FILTER_VALIDATE_INT,
+			'options'	=> [
+				'min_range'	=> AUTH_BANNED,
+				'max_range'	=> AUTH_ADMIN,
+				'default'	=> AUTH_USER
+			]
+		],
+		'bio'		=> \FILTER_UNSAFE_RAW
+	] );
+	
+	// Add status to changes if user is an editor
+	if ( $user['status'] < AUTH_EDITOR ) {
+		unset( $form['status'] );
+	}
+	
+	saveUser( $form );
+	send( 200, '' );
 }
 
 /**
@@ -2951,7 +3051,7 @@ function doProfile( array $route ) {
  */
 function logout( array $route ) {
 	endAuth();
-	redirect( 205, '' );
+	redirect( 205, website() );
 }
 
 /**
@@ -2959,10 +3059,10 @@ function logout( array $route ) {
  */
 function viewLogin( array $route ) {
 	$conf		= settings();
-	$theme		= getTemplate( $conf, 'login' );
+	$htpl		= getTemplate( $conf, 'login' );
 	$root		= getRoot( $conf );
 	
-	$htpl		= [
+	$tpl		= [
 		'{page_title}'=> $conf['title'],
 		'{root}'	=> $root,
 		'{theme}'	=> getTheme( $conf ),
@@ -2970,7 +3070,7 @@ function viewLogin( array $route ) {
 		'{action}'	=> $root . 'login'
 	];
 	
-	send( 200, \strtr( $theme, $tpl ) );
+	send( 200, \strtr( $htpl, $tpl ) );
 }
 
 /**
@@ -3016,6 +3116,7 @@ function doLogin( array $route ) {
 	
 	// Load configuration
 	$conf		= settings();
+	$root		= getRoot( $conf );
 	
 	// Password matches?
 	if ( verifyPassword( 
@@ -3028,11 +3129,11 @@ function doLogin( array $route ) {
 		
 		// Check if redirected to previously requested path
 		if ( empty( $form['redir'] ) ) {
-			send( 202, getRoot( $conf ) );
+			redirect( 202, website() . $root );
 		}
 		
 		// Send to previously requested path
-		redirect( 202, $form['redir'] );
+		redirect( 202, website() . $root . $form['redir'] );
 	}
 	
 	// Password didn't match resend path with 
@@ -3177,7 +3278,7 @@ function doChPass( array $route ) {
 	
 	// Reset authorization
 	setAuth( $user );
-	send( 200, '' );
+	redirect( 200, website() . getRoot( $conf ) );
 }
 
 /**
