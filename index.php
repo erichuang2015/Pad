@@ -2208,6 +2208,36 @@ function getTemplate(
 }
 
 /**
+ *  Generate timezone select
+ *  
+ *  @link https://stackoverflow.com/a/17355238
+ */
+function timezoneSelect( $selected ) : string {
+	$zones	= 
+	\DateTimeZone::listIdentifiers( \DateTimeZone::ALL );
+	
+	$offsets	= [];
+	foreach( $zones as $tz ) {
+		$t	= new \DateTimeZone( $tz );
+		$offsets[$t]	= $tz->getOffset( new \DateTime );
+	}
+	
+	\asort( $offsets );
+	$out		= '<select name="timezone" id="timezone">';
+	
+	foreach( $offsets as $tz => $offset ) {
+		$prefix	= ( $offset < 0 ) ? '-' : '+';
+		$format	= gmdate( 'H:i', abs( $offset ) );
+		$nice		= "UTC${prefix}${format}";
+		$out		.=
+		$tz == $selected ? 
+		"<option value=\"{$tz}\" selected>${nice} $tz</option>" :
+		"<option value=\"{$tz}\">${nice} $tz</option>";
+	}
+	return $out . '</select>';
+}
+
+/**
  *  Site root
  */
 function getRoot( $conf ) {
@@ -3115,6 +3145,7 @@ function viewConfig( array $route ) {
 		'{settings}'	=> $root . 'manage/settings',
 		'{title}'	=> $conf['title'],
 		'{tagline}'	=> $conf['tagline'],
+		'{timezone}'	=> timezoneSelect( $conf['timezone'] ),
 		'{copyright}'	=> $conf['copyright'],
 		'{csp}'	=> $conf['csp'],
 		'{show_full}'	=> checkedCheckbox( $conf['show_full'] ),
