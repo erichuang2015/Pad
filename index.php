@@ -1562,33 +1562,6 @@ function txtHas( string $haystack, string $term ) {
 }
 
 /**
- *  Check for placeholders in the given template
- */
-function tplFeature( string $tpl, string $test ) {
-	static $check		= [];
-	
-	// Preload check
-	$id			= hash( 'sha256', $tpl );
-	
-	// Already checked?
-	if ( isset( $check[$id][$test] ) ) {
-		return $check[$id][$test];
-	}
-	
-	// Already checked?
-	if ( !isset( $check[$id] ) ) {
-		$check[$id]	= [];
-	}
-	
-	
-	$check[$id][$test]	= 
-	txtHas( $check[$id], '{' . $test . '}' ) ? true : false;
-	
-	return $check[$id][$test];
-}
-
-
-/**
  *  Session functions
  */
 
@@ -2657,12 +2630,12 @@ function viewPage( array $route ) {
 	];
 	
 	// Has copyright feature
-	if ( tplFeature( $htpl, 'copyright' ) ) {
+	if ( txtHas( $htpl, 'copyright' ) ) {
 		'{copyright}'	=> html( $conf['copyright'] );
 	} 
 	
 	// Has author feature
-	if ( tplFeature( $htpl, 'author' ) ) {
+	if ( ttxtHas( $htpl, 'author' ) ) {
 		// Apply author template
 		$atpl			= getTemplate( $conf, 'authorfrag' );
 		$tpl['{author}']	= 
@@ -2674,12 +2647,12 @@ function viewPage( array $route ) {
 	}
 	
 	// Filter and display content
-	if ( tplFeature( $htpl, 'body' ) ) {
+	if ( txtHas( $htpl, 'body' ) ) {
 		$tpl['{body}']	=> html( $post['body'] );
 	}
 	
 	// Has siblings feature
-	if ( tplFeature( $htpl, 'siblings' ) ) {
+	if ( txtHas( $htpl, 'siblings' ) ) {
 		// Find neighboring pages
 		$siblings		= 
 		findPostSiblings( 
@@ -2967,15 +2940,15 @@ function viewProfile( array $route ) {
 	
 	// TODO: User status editor
 	if ( $user['status'] >= AUTH_EDITOR ) {
-		if ( tplFeature( $htpl, 'ustatus' ) ) {
+		if ( txtHas( $htpl, 'ustatus' ) ) {
 			//
 		}
 	}
 	
 	// Form view
 	if ( 
-		tplFeature( $htpl, 'action' )	&& 
-		tplFeature( $htpl, 'csrf' )
+		txtHas( $htpl, 'action' )	&& 
+		txtHas( $htpl, 'csrf' )
 	) {
 		$tpl['{csrf}']	= getCsrf( 'profile' );
 		$tpl['{bio}']		= $data['bio'];
