@@ -3138,10 +3138,30 @@ function doConfig( array $route ) {
 	
 	$form		= \filter_input_array( \INPUT_POST, [
 		'csrf'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
-		'title'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
-		'tagline'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
-		'webroot'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
-		'theme'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+		'title'	=>  [
+			'filter'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+			'options'	=> [
+				'default'	=> 'Untitled'
+			]
+		],
+		'tagline'	=> [
+			'filter'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+			'options'	=> [
+				'default'	=> ''
+			]
+		],
+		'webroot'	=> [
+			'filter'	=> \FILTER_SANITIZE_URL,
+			'options'	=> [
+				'default'	=> '/'
+			]
+		],
+		'theme'	=> [
+			'filter'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+			'options'	=> [
+				'default'	=> 'goethe'
+			]
+		],
 		'posts'	=>
 		[
 			'filter'	=> \FILTER_VALIDATE_INT,
@@ -3182,7 +3202,6 @@ function doConfig( array $route ) {
 				'max_range'	=> 500
 			]
 		],
-		'theme'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'date_format'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'timezone'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 		'copyright'	=> \FILTER_UNSAFE_RAW
