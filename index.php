@@ -2396,7 +2396,7 @@ function route( array $routes, array $markers ) {
 	}
 	
 	if ( !$found ) {
-		die( 'Not found' );
+		notfound();
 	}
 	
 	die();
@@ -3258,6 +3258,31 @@ function doConfig( array $route ) {
 	
 	saveSettings( $params );
 	send( 200, 'manage/settings' );
+}
+
+/**
+ *  Not found page
+ */
+function notfound() {
+	// Load post template and get Root
+	$theme		= getTemplate( $conf, 'notfound' );
+	$root		= getRoot( $conf );
+	
+	$tpl		= [
+		'{theme}'		=> getTheme(),
+		'{settings}'		=> $root . 'manage/settings',
+		'{page_title}'	=> $conf['title'],
+		'{tagline}'		=> $conf['tagline'],
+		'{copyright}'		=> $conf['copyright']
+	];
+	$tpl			= [
+		'{page_title}'=> $conf['title'],
+		'{tagline}'	=> $conf['tagline'],
+		'{root}'	=> $root,
+		'{manage}'	=> $root . 'manage',
+		'{theme}'	=> getTheme( $conf ) . '/',
+		'{copyright}'	=> $conf['copyright']
+	];
 }
 
 /**
