@@ -2768,9 +2768,16 @@ function route( array $routes, array $markers ) {
 	// Process request method for valid types
 	$verb		= strtolower( $_SERVER['REQUEST_METHOD'] );
 	switch( $verb ) {
-		// Standard
-		case 'post':
+		// Check cache
 		case 'get':
+			$data = getCache( fullURI() );
+			if ( !empty( $data ) ) {
+				send( 200, $data );
+			}
+			break;
+		
+		// Will need processing, continue
+		case 'post':
 			break;
 		
 		// No content sent
