@@ -2891,7 +2891,7 @@ function newPage( array $route ) {
 	$conf			= settings();
 	
 	// Load post template and get root
-	$htpl			= getTemplate( $conf, 'post', false, true );
+	$htpl			= getTemplate( $conf, 'newpost', false, true );
 	$root			= getRoot( $conf );
 	
 	$tpl			= [
@@ -2990,7 +2990,7 @@ function editPage( array $route ) {
 	$post		= findPostById( $id );
 	
 	// Load post template and get Root
-	$htpl		= getTemplate( $conf, 'post', false, true );
+	$htpl		= getTemplate( $conf, 'editpost', false, true );
 	$root		= getRoot( $conf );
 	
 	// Fill template placeholders
