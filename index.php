@@ -289,9 +289,9 @@ function flatten(
 		);
 	
 	$out	= [];
-	foreach( $it as $leaf ) {
+	foreach ( $it as $leaf ) {
 		$path = '';
-		foreach( \range( 0, $it->getDepth() ) as $depth ) {
+		foreach ( \range( 0, $it->getDepth() ) as $depth ) {
 			$path .= 
 			\sprintf( 
 				"$delim%s", 
@@ -495,6 +495,14 @@ function saveSettings( array $params ) : int {
 	return \file_put_contents( SETTINGS, $out );
 }
 
+/**
+ *  Cleanup and other extras
+ */
+function shutdown() {
+	cacheGC();
+}
+
+\register_shutdown_function( 'shutdown' );
 
 
 /**
@@ -524,7 +532,7 @@ function cachePath(
 	}
 	
 	// Iterate through segments and create each directory
-	foreach( $parts as $part ) {
+	foreach ( $parts as $part ) {
 		$segs .= $s . $part;
 		writeDir( $segs );
 	}
@@ -536,6 +544,8 @@ function cachePath(
  *  Create a directory if it doesn't exist
  *  Owner: read/write
  *  Everyone else: read
+ *  
+ *  @param string	$dir	Directory to make / set permissions
  */
 function writeDir( string $dir ) {
 	if ( !\is_dir( $dir ) ) {
@@ -545,8 +555,11 @@ function writeDir( string $dir ) {
 
 /**
  *  Check if cache content exists and hasn't expired yet
+ *  
+ *  @param string	$path		Cache data file
+ *  @return bool
  */
-function cacheHit( $path ) : bool {
+function cacheHit( string $path ) : bool {
 	if ( empty( $this->path ) ) {
 		return false;
 	}
@@ -564,12 +577,14 @@ function cacheHit( $path ) : bool {
 
 /**
  *  Get cached data (if any) by URI key
+ *  
+ *  @return string
  */
 function getCache( string $uri ) : string {
 	$key	= \hash( 'sha256', $uri );
 	$path	= cachePath( $key, false );
 	
-	if ( file_exists( $path ) ) {
+	if ( cacheHit( $path ) ) {
 		return \file_get_contents( $path );
 	}
 	
@@ -578,6 +593,9 @@ function getCache( string $uri ) : string {
 
 /**
  *  Save content to cache
+ *  
+ *  @param string	$uri		URI to set cache to
+ *  @param string	$content	Cache data
  */
 function saveCache( string $uri, string $content ) : bool {
 	$key	= \hash( 'sha256', $uri );
@@ -591,6 +609,66 @@ function saveCache( string $uri, string $content ) : bool {
 	return 
 	\file_put_contents( $path, $content ) ? true : false;
 }
+
+/**
+ *  Directory iterator helper
+ *  
+ *  @param string	$root	Directory root
+ *  @return RecursiveIteratorIterator
+ */
+function getDirectory( $root ) {
+	return
+	new \RecursiveIteratorIterator(
+		new \RecursiveDirectoryIterator( 
+			$root, \FilesystemIterator::SKIP_DOTS |
+				\FilesystemIterator::FOLLOW_SYMLINKS
+		), 
+		\RecursiveIteratorIterator::CHILD_FIRST
+	);
+		
+}
+
+/**
+ *  Garbage collection of old cache files
+ *  
+ *  @link https://stackoverflow.com/a/42945163
+ *  @link https://stackoverflow.com/a/10609967
+ *  
+ *  @param string	$root	Cache path directory
+ */
+function cacheGC( string $root = \CACHE ) {
+	
+	// Cache directory
+	$dir	= getDirectory( $root );
+	
+	// Exclude files with an extension (E.G. readme.md)
+	$it	= 
+	new \RegexIterator( 
+		$dir, '/^([^.]+)$/i', 
+		\RecursiveRegexIterator::GET_MATCH 
+	);
+	
+	// Current time
+	$now	= time();
+	
+	// Iterate through each file
+	foreach ( $it as $file ) {
+		
+		// Check for cache expiration
+		if ( ( $now - $file->getCTime() ) >  CACHE_TTL ) {
+			
+			// Check path
+			$path = $info->getRealPath();
+			
+			// No conflict or errors?
+			if ( false !== $path ) {
+				\unlink( $path );
+			}
+		}
+	}
+}
+
+
 
 /**
  *  Database
@@ -781,7 +859,7 @@ function findPostsArchive( array $data ) : array {
 		$search[] = $raw[2];
 	}
 	
-	switch( count( $search ) ) {
+	switch ( count( $search ) ) {
 		case 3:
 			$label	= 'archive_ymd';
 			break;
@@ -826,7 +904,7 @@ function findPostBySearch( int $page, string $search ) : array {
 	
 	// Generate parameters
 	$param = [];
-	foreach( $ids as $id ) {
+	foreach ( $ids as $id ) {
 		$param[':id_' . $id] = $id;
 	}
 	
@@ -851,7 +929,7 @@ function setTags( int $id, array $tags ) {
 	
 	$db	= getDb();
 	$stm	= $db->prepare( $sql );
-	foreach( $tags as $k => $v ) {
+	foreach ( $tags as $k => $v ) {
 		$stm->execute( [
 			':name'	=> $v,
 			':slug'	=> slugify( $v ),
@@ -1393,7 +1471,7 @@ function cleanAttributes(
 		// It will only get added if it's safe
 		$node->removeAttributeNode( $at );
 		if ( \in_array( $n, $white[$node->nodeName] ) ) {
-			switch( $n ) {
+			switch ( $n ) {
 				case 'longdesc':
 				case 'url':
 				case 'src':
@@ -1541,7 +1619,7 @@ function markdown( $html, $prefix = '' ) {
 			$i = \strlen( $m[1] );
 			$t = \trim( $m[4] );
 			
-			switch( true ) {
+			switch ( true ) {
 				case ( false !== \strpos( $m[1], '~' ) ):
 					return \sprintf( "<del>%s</del>", $t );
 					
@@ -1667,7 +1745,7 @@ function taglist( $value ) : array {
 	$value	= pacify( $value ?? '' );
 	$vals	= \explode( ',', $value );
 	$uf	= [];
-	foreach( $vals as $v) {
+	foreach ( $vals as $v) {
 		$uf[] = pacify( $v );
 	}
 	return $uf;
@@ -1724,7 +1802,7 @@ function html( $value ) : string {
 		$dom->getElementsByTagName( 'body' )->item( 0 );
 	
 	// Iterate through every HTML element 
-	foreach( $domBody->childNodes as $node ) {
+	foreach ( $domBody->childNodes as $node ) {
 		scrub( $node, $white, $flush );
 	}
 	
@@ -2478,7 +2556,7 @@ function timezoneSelect( string $selected ) : string {
 	\DateTimeZone::listIdentifiers( \DateTimeZone::ALL );
 	
 	$offsets	= [];
-	foreach( $zones as $tz ) {
+	foreach ( $zones as $tz ) {
 		$t		= new \DateTimeZone( $tz );
 		$offsets[$t]	= $tz->getOffset( new \DateTime );
 	}
@@ -2487,7 +2565,7 @@ function timezoneSelect( string $selected ) : string {
 	$out		= 
 	'<select name="timezone" id="timezone" required>';
 	
-	foreach( $offsets as $tz => $offset ) {
+	foreach ( $offsets as $tz => $offset ) {
 		$prefix	= ( $offset < 0 ) ? '-' : '+';
 		$format	= \gmdate( 'H:i', \abs( $offset ) );
 		$nice		= "UTC${prefix}${format}";
@@ -2528,7 +2606,7 @@ function formatPosts( $conf, $results, $feed, $admin ) {
 	$out			= '';
 	$root			= getRoot( $conf );
 	
-	foreach( $results as $k => $v ) {
+	foreach ( $results as $k => $v ) {
 		// Set relative post edit path
 		$v['post_edit']	= $root . $v['post_edit'];
 		
@@ -2611,7 +2689,7 @@ function navPage( $conf, $page, $count ) {
 function siblingPages( $conf, array $siblings ) {
 	$root	= rtrim( getRoot( $conf ), '/' );
 	$out	= '';
-	foreach( $siblings as $s ) {
+	foreach ( $siblings as $s ) {
 		$out .= \strtr( NAV_TPL [
 			'{url}'	=> $root . $s['permalink'],
 			'{page}'	=> $s['title']
@@ -2697,7 +2775,7 @@ function route( array $routes, array $markers ) {
 	$v		= array_values( $markers );
 	$found		= false;
 	
-	foreach( $routes as $map ) {
+	foreach ( $routes as $map ) {
 		if ( $map[0] != $verb ) {
 			continue;
 		}
