@@ -3335,7 +3335,6 @@ function doRegister( array $route ) {
 		send( 401, MSG_PASSMATCH );
 	}
 	
-	
 	var_dump( $data );
 }
 
@@ -3619,6 +3618,8 @@ function notfound() {
 		'{theme}'	=> getTheme( $conf ) . '/',
 		'{copyright}'	=> $conf['copyright']
 	];
+	
+	send( 404, \strtr( $theme, $tpl ) );
 }
 
 /**
