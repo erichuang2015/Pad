@@ -2530,7 +2530,7 @@ function indexView(
 	string		$search	= ''
 ) {
 	$root		= getRoot( $conf );
-	return
+	$content	= 
 	\strtr( $theme, [
 		'{theme}'		=> getTheme( $conf, $feed, $admin ),
 		'{date_gen}'		=> rfcDate(),
@@ -2545,6 +2545,8 @@ function indexView(
 		'{navpages}'		=> 
 			navPage( $conf, $page, count( $results ) )
 	] );
+	
+	return parseLang( $content );
 }
 
 
@@ -2830,6 +2832,8 @@ function viewPage( array $route ) {
 			$post['{siblings}']	= '';
 		}
 	}
+	
+	$htpl	= parseLang( $htpl );
 	send( 200, \strtr( $htpl, $tpl ) );
 }
 
@@ -2884,7 +2888,7 @@ function newPage( array $route ) {
 	$conf			= settings();
 	
 	// Load post template and get root
-	$theme			= getTemplate( $conf, 'post', false, true );
+	$htpl			= getTemplate( $conf, 'post', false, true );
 	$root			= getRoot( $conf );
 	
 	$tpl			= [
@@ -2899,7 +2903,8 @@ function newPage( array $route ) {
 		'{body}'	=> ''
 	];
 	
-	send( 200, \strtr( $theme, $tpl ) );
+	$htpl	= parseLang( $htpl );
+	send( 200, \strtr( $htpl, $tpl ) );
 }
 
 /**
@@ -2982,7 +2987,7 @@ function editPage( array $route ) {
 	$post		= findPostById( $id );
 	
 	// Load post template and get Root
-	$theme		= getTemplate( $conf, 'post', false, true );
+	$htpl		= getTemplate( $conf, 'post', false, true );
 	$root		= getRoot( $conf );
 	
 	// Fill template placeholders
@@ -3000,7 +3005,8 @@ function editPage( array $route ) {
 		getTemplate( $conf, 'deletefrag', false, true )
 	];
 	
-	send( 200, \strtr( $theme, $tpl ) );
+	$htpl	= parseLang( $htpl );
+	send( 200, \strtr( $htpl, $tpl ) );
 }
 
 /**
@@ -3127,6 +3133,7 @@ function viewProfile( array $route ) {
 		$tpl['{bio}']		= html( $data['bio'] );
 	}
 	
+	$htpl	= parseLang( $htpl );
 	send( 200, \strtr( $htpl, $tpl ) );
 }
 
@@ -3209,6 +3216,7 @@ function viewLogin( array $route ) {
 		'{action}'	=> $root . 'login'
 	];
 	
+	$htpl	= parseLang( $htpl );
 	send( 200, \strtr( $htpl, $tpl ) );
 }
 
@@ -3349,7 +3357,7 @@ function viewChPass( array $route ) {
 	}
 	
 	$root		= getRoot( $conf );
-	$theme		= getTemplate( $conf, 'login' );
+	$htpl		= getTemplate( $conf, 'login' );
 	$conf		= settings();
 	$tpl		= [
 		'{page_title}'=> $conf['title'],
@@ -3359,7 +3367,8 @@ function viewChPass( array $route ) {
 		'{action}'	=> $root . 'changepass'
 	];
 	
-	send( 200, \strtr( $theme, $tpl ) );
+	$htpl	= parseLang( $htpl );
+	send( 200, \strtr( $htpl, $tpl ) );
 }
 
 /**
@@ -3425,7 +3434,7 @@ function viewConfig( array $route ) {
 	}
 	
 	// Load post template and get Root
-	$theme		= getTemplate( $conf, 'settings', false, true );
+	$htpl		= getTemplate( $conf, 'settings', false, true );
 	$root		= getRoot( $conf );
 	
 	$tpl		= [
@@ -3446,7 +3455,8 @@ function viewConfig( array $route ) {
 			checkedCheckbox( $conf['allow_register'] )
 	];
 	
-	send( 200, \strtr( $theme, $tpl ) );
+	$htpl	= parseLang( $htpl );
+	send( 200, \strtr( $htpl, $tpl ) );
 }
 
 /**
@@ -3607,7 +3617,7 @@ function doConfig( array $route ) {
  */
 function notfound() {
 	// Load post template and get Root
-	$theme		= getTemplate( $conf, 'notfound' );
+	$htpl		= getTemplate( $conf, 'notfound' );
 	$root		= getRoot( $conf );
 	
 	$tpl			= [
@@ -3619,7 +3629,8 @@ function notfound() {
 		'{copyright}'	=> $conf['copyright']
 	];
 	
-	send( 404, \strtr( $theme, $tpl ) );
+	$htpl	= parseLang( $htpl );
+	send( 404, \strtr( $htpl, $tpl ) );
 }
 
 /**
