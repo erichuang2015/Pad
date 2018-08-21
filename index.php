@@ -276,6 +276,100 @@ function loadFile( $name ) {
 }
 
 /**
+ *  Flatten a multi-dimensional array into a path map
+ *  
+ *  @link https://stackoverflow.com/a/2703121
+ */ 
+function flatten(
+	array		$items, 
+	string		$delim	= ':'
+) {
+	$it	= new \RecursiveIteratorIterator( 
+			new \RecursiveArrayIterator( $items )
+		);
+	
+	$out	= [];
+	foreach( $it as $leaf ) {
+		$path = '';
+		foreach( \range( 0, $it->getDepth() ) as $depth ) {
+			$path .= 
+			\sprintf( 
+				"$delim%s", 
+				$it->getSubIterator( $depth )->key() 
+			);
+		}
+		$out[$path] = $leaf;
+	}
+	
+	return $out;
+}
+
+/**
+ *  Load and process language file
+ */
+function language() {
+	static $data;
+	
+	if ( isset( $data ) ) {
+		return $data;
+	}
+	$file	= loadFile( LANGUAGE );
+	$terms	= decode( $file );
+	
+	$data	= empty( $terms ) ? [] : $terms;
+	return $data;
+}
+
+/**
+ *  Term replacement helper
+ *  Flattens multidimensional array into {$prefix:group:label...} format
+ *  and replaces matching placeholders in content
+ *  
+ *  @param string	$prefix		Replacement prefix E.G. 'lang'
+ *  @param array	$data		Multidimensional array
+ *  @param string	$content	Placeholders to replace
+ *  @return string
+ */ 
+function prefixReplace(
+	string		$prefix, 
+	array		$data, 
+	string		$content
+) {
+	// Find placeholders with given prefix
+	\preg_match_all( 
+		'/\{' . $prefix . '(\:[\:a-z]{1,100})\}/g', 
+		$content, $matches 
+	);
+	
+	// Convert data to :group:label... format
+	$terms	= flatten( $data );
+	
+	// Replacements list
+	$rpl	= [];
+	
+	$c	= count( $matches );
+	
+	// Set {prefix:group:label... } replacements or empty string
+	for( $i = 0; $i < $c; $i++ ) {
+		$rpl['{' . $prefix . $m[1] . '}']	= 
+			$terms[$m[1]] ?? '';
+	}
+	
+	return \strtr( $content, $rpl );
+}
+
+/**
+ *  Scan template for language placeholders
+ *  
+ *  @param string	$tpl	Loaded template data
+ *  @return string
+ */
+function parseLang( string $tpl ) {
+	$lang		= language();
+	return prefixReplace( 'lang', $lang, $tpl );
+}
+
+/**
  *  UTC timestamp
  */
 function utc( $stamp = null ) : string {
@@ -2501,9 +2595,9 @@ function route( array $routes, array $markers ) {
 			continue;
 		}
 		$rx = cleanRoute( $k, $v, $map[1] );
-		if ( preg_match( $rx, $path, $params ) ) {
+		if ( \preg_match( $rx, $path, $params ) ) {
 			$found	= true;
-			if ( is_callable( $map[2] ) ) {
+			if ( \is_callable( $map[2] ) ) {
 				$params		= filterParams( $params );
 				$params['method']	= $verb;
 				\call_user_func( $map[2], $params );
