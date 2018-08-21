@@ -29,9 +29,29 @@
 			"publish"	: "Publish",
 			"title"		: "Title",
 			"slug"		: "Slug",
-			"publish"	: "Publish",
+			"body"		: "Body",
+			"publish"	: "Publish on",
 			"delete"	: "Delete this post",
-			"delconf"	: "Are you sure? This cannot be undone"
+			"delprefix"	: "Are you sure?",
+			"delconf"	: "This cannot be undone"
+		}, 
+		"settings"	: {
+			"save"		: "Save",
+			"title"		: "Title:",
+			"tagline"	: "Tagline:",
+			"copyright"	: "Copyright:",
+			"dateformat"	: "Date format:",
+			"timezone"	: "Timezone:",
+			"webroot"	: "Web root:",
+			"theme"		: "Theme name:",
+			"postlimit"	: "Posts per page:",
+			"csp"		: "Content security policy:",
+			"cspnote"	: "JSON formatted, without comments",
+			"showbody"	: "Show page body",
+			"allowreg"	: "Allow registrations",
+			"forcetls"	: "Force TLS",
+			"tlsnote"	: "If TLS is not available, this can break your site"
+			
 		}, 
 		"bio"		: {
 			"display"	: "display name",
@@ -43,7 +63,12 @@
 		"previous"	: "Previous",
 		"next"		: "Next",
 		"home"		: "Home",
+		"editor"	: "Editor",
 		"manage"	: "Manage",
+		"settings"	: "Settings",
+		"newpost"	: "New post",
+		"postlist"	: "Posts",
+		"help"		: "Help",
 		"home"		: "Edit",
 		"by"		: "By"
 	},
