@@ -91,11 +91,11 @@ define( 'RX_XSS4',		'/(\\~\/|\.\.|\\\\|\-\-)/sm' );
 define( 'INCLUDED', 1 );
 require( 'config.php' );
 
+
 /**
  *  Security 
  */
 
-	
 /**
  *  Process HTTP_* variables
  */
@@ -279,14 +279,14 @@ function loadFile( $name ) {
  *  UTC timestamp
  */
 function utc( $stamp = null ) : string {
-	return gmdate( 'Y-m-d H:i:s', $stamp ?? time() );
+	return \gmdate( 'Y-m-d H:i:s', $stamp ?? time() );
 }
 
 /***
  *  ATOM compatible UTC timestamp
  */
 function rfcDate( $stamp = null ) : string {
-	$fmt	= date( 'D, d M Y H:i:s T', $stamp ?? time() );
+	$fmt	= \date( 'D, d M Y H:i:s T', $stamp ?? time() );
 	
 	return \gmdate( \DATE_RFC2822, \strtotime( $fmt ) );
 }
@@ -343,7 +343,7 @@ function enforceDates( array $args ) : array {
  */
 function encode( array $data ) : string {
 	return 
-	json_encode( 
+	\json_encode( 
 		$data, 
 		\JSON_HEX_TAG | \JSON_HEX_APOS | \JSON_HEX_QUOT | 
 		\JSON_HEX_AMP | \JSON_UNESCAPED_UNICODE | 
@@ -356,7 +356,7 @@ function encode( array $data ) : string {
  */
 function decode( string $data ) : array {
 	$data = 
-	json_decode( 
+	\json_decode( 
 		\utf8_encode( $data ), true, 10, 
 		\JSON_BIGINT_AS_STRING
 	);
@@ -400,6 +400,7 @@ function saveSettings( array $params ) {
 	$out			= encode( $data );
 	\file_put_contents( SETTINGS, $out );
 }
+
 
 
 /**
@@ -735,7 +736,6 @@ function savePost( array $data ) {
  *  User data functions
  */
 
-
 /**
  *  Find user authorization by cookie lookup
  */
@@ -864,7 +864,6 @@ function savePassword( ( int ) $id, string $password ) {
 	] );
 }
 
-
 /**
  *  Hash password
  */
@@ -916,6 +915,11 @@ function passNeedsRehash(
 	\password_needs_rehash( $stored, \PASSWORD_DEFAULT );
 }
 
+
+/**
+ *  Form processing
+ */
+
 /**
  *  Check for deletion request and confirmation
  */
@@ -930,7 +934,7 @@ function postDeleteCheck( $data ) {
 	
 	// Nothing to delete
 	if ( empty( $data['id'] ) ) {
-		redirect( 200, website() . $root . 'manage' );
+		sendPage( $conf, 'manage' );
 	} else {
 		$post = 
 		findPreviewById( ( int ) $data['id'] );
@@ -938,7 +942,6 @@ function postDeleteCheck( $data ) {
 		// Delete requested, but nothing to delete?
 		if ( empty( $post ) ) {
 			notfound();
-			// redirect( 200, website() . $root . 'manage' );
 		}	
 	}
 }
@@ -974,11 +977,9 @@ function postForm( array $filter, array $user ) {
 		$data['user_id'] = $user['id'];
 	}
 	
-	$conf	= settings();
-	$root	= getRoot( $conf );
-	$post	= savePost( $data );
 	
-	redirect( 200, website() . $root . $post['id'] . '/' . $post['slug'] );
+	$post	= savePost( $data );
+	sendPage( $conf, $post['id'] . '/' . $post['slug'] );
 }
 
 
@@ -2104,6 +2105,8 @@ function httpCode(
 
 /**
  *  Current website with protocol prefix
+ *  
+ *  @return string
  */
 function website() {
 	$url	= isSecure() ? 'https://' : 'http://';
@@ -2112,6 +2115,9 @@ function website() {
 
 /**
  *  Print headers, content, and end execution
+ *  
+ *  @param int		$code		HTTP Status code
+ *  @param string	$content	Page data to send to client
  */
 function send(
 	int	$code		= 200,
@@ -2124,20 +2130,44 @@ function send(
 
 /**
  *  Login path redirect helper
+ *  
+ *  @param array	$conf		Configuration settings
+ *  @param string	$redir		Relative path to prepend login
  */
-function sendLogin( $conf, $redir = '' ) {
+function sendLogin( array $conf, string $redir = '' ) {
 	$path = getRoot( $conf ) . 'login/';
 	
-	// Password didn't match resend path with 
+	// Send redirect with current website prefixed
 	redirect( 401, website() . $path . $redir );
 }
 
 /**
+ *  Multi-page redirect helper
+ *  
+ *  @param array	$conf		Configuration settings
+ *  @param string	$page		Relative path to redirect
+ *  @param int		$code		HTTP Status code
+ */
+function sendPage( 
+	array		$conf,
+	string		$page		= '',
+	int		$code		= 200
+) {
+	$page = getRoot( $conf ) . $page;
+	
+	// Send redirect with requested code
+	redirect( $code, website() . $page );
+}
+
+/**
  *  Redirect with status code
+ *  
+ *  @param int		$code		HTTP Status code
+ *  @param string	$path		Full URL to from current domain
  */
 function redirect(
-	int	$code		= 200,
-	string $path		= ''
+	int		$code		= 200,
+	string		$path		= ''
 ) {
 	\ob_end_clean();
 	$conf	= settings();
@@ -2150,9 +2180,8 @@ function redirect(
 		die( 'Invalid URL' );
 	}
 	
-	
+	// Get get current path
 	$path	= getRoot( $conf ) . $url['path'] ?? '';
-	
 	
 	// Directory traversal
 	$path	= \preg_replace( '/\.{2,}', '.', $path );
@@ -2170,12 +2199,18 @@ function redirect(
 
 
 /**
- * Get the configured theme
+ *  Get the configured theme
+ * 
+ *  @param array	$conf		Configuration settings
+ *  @param bool		$feed		Set true if this is a feed page
+ *  @param bool		$admin		Set true if this is an admin page
+ *  
+ *  @return string
  */
 function getTheme(
 	array		$conf,
-	bool		$feed = false,
-	bool		$admin = false
+	bool		$feed		= false,
+	bool		$admin		= false
 ) {
 	static $theme;
 	if ( $admin ) {
@@ -2194,7 +2229,9 @@ function getTheme(
 }
 
 /**
- * Get the configured theme
+ *  Get the configured theme
+ *  
+ *  @return string
  */
 function getAdminTheme() {
 	static $mtheme;
@@ -2210,6 +2247,12 @@ function getAdminTheme() {
 
 /**
  *  Get formatting template
+ *  
+ *  @param array	$conf		Configuration settings
+ *  @param string	$name		HTML template name
+ *  @param bool		$feed		Set true if this is a feed page
+ *  @param bool		$admin		Set true if this is an admin page
+ *  @return string
  */
 function getTemplate(
 	array		$conf,
@@ -2227,8 +2270,11 @@ function getTemplate(
  *  Generate timezone select
  *  
  *  @link https://stackoverflow.com/a/17355238
+ *  
+ *  @param string	$selected	Currently set timezone
+ *  @return string
  */
-function timezoneSelect( $selected ) : string {
+function timezoneSelect( string $selected ) : string {
 	$zones	= 
 	\DateTimeZone::listIdentifiers( \DateTimeZone::ALL );
 	
@@ -2257,6 +2303,8 @@ function timezoneSelect( $selected ) : string {
 
 /**
  *  Site root
+ *  
+ *  @return string
  */
 function getRoot( $conf ) {
 	return \rtrim( $conf['webroot'] ?? '',  '/' ) . '/';
@@ -2264,6 +2312,12 @@ function getRoot( $conf ) {
 
 /**
  *  Format post results with given template parameters
+ *  
+ *  @param array	$conf		Configuration settings
+ *  @param array	$results	List of posts to format
+ *  @param bool		$feed		Set true if this is a feed page
+ *  @param bool		$admin		Set true if this is an admin page
+ *  @return string
  */
 function formatPosts( $conf, $results, $feed, $admin ) {
 	$htpl			= 
@@ -2288,6 +2342,11 @@ function formatPosts( $conf, $results, $feed, $admin ) {
 
 /**
  *  Format individual post
+ *  
+ *  @param array	$ptpl		Post template
+ *  @param string	$atpl		Author template fragment
+ *  @param array	$post		Post row from database
+ *  @return string
  */
 function formatPost( $conf, $htpl, $atpl, $post ) {
 	$root			= getRoot( $conf );
@@ -2308,6 +2367,11 @@ function formatPost( $conf, $htpl, $atpl, $post ) {
 
 /**
  *  Next/Previous navigation links
+ *  
+ *  @param array	$conf		Configuration settings
+ *  @param int		$page		Current pagination index
+ *  @param int		$count		Number of records in this index
+ *  @return string
  */
 function navPage( $conf, $page, $count ) {
 	$pm	= $page - 1;
@@ -2340,6 +2404,10 @@ function navPage( $conf, $page, $count ) {
 
 /**
  *  Format links to neighboring pages
+ *  
+ *  @param array	$conf		Configuration settings
+ *  @param array	$siblings	Posts to create link details
+ *  @return string
  */
 function siblingPages( $conf, array $siblings ) {
 	$root	= rtrim( getRoot( $conf ), '/' );
@@ -2848,7 +2916,7 @@ function doEditPage( array $route ) {
 	$user		= authUser();
 	$conf		= settings();
 	if ( empty( $user ) ) {
-		sendLogin( $conf );
+		sendLogin( $conf, '' );
 	}
 	
 	$filter	= 
@@ -3101,16 +3169,11 @@ function doLogin( array $route ) {
 			savePassword( $user['id'], $user['password'] );
 		}
 		
-		// Check if redirected to previously requested path
-		if ( empty( $form['redir'] ) ) {
-			redirect( 202, website() . $root );
-		}
-		
-		// Send to previously requested path
-		redirect( 202, website() . $root . $form['redir'] );
+		// Send to previously requested path, if any
+		sendPage( $conf, $form['redir'] ?? '', 202 );
 	}
 	
-	// Password didn't match resend path with 
+	// Password didn't match resend login path with redirect
 	sendLogin( $conf, $form['redir'] ?? '' );
 }
 
@@ -3252,7 +3315,7 @@ function doChPass( array $route ) {
 	
 	// Reset authorization
 	setAuth( $user );
-	redirect( 200, website() . getRoot( $conf ) );
+	sendPage( $conf, '' );
 }
 
 /**
@@ -3440,7 +3503,7 @@ function doConfig( array $route ) {
 	];
 	
 	saveSettings( $params );
-	send( 200, 'manage/settings' );
+	sendPage( 200, 'manage/settings' );
 }
 
 /**
