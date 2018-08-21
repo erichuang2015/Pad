@@ -334,7 +334,7 @@ function prefixReplace(
 	string		$prefix, 
 	array		$data, 
 	string		$content
-) {
+) : string {
 	// Find placeholders with given prefix
 	\preg_match_all( 
 		'/\{' . $prefix . '(\:[\:a-z]{1,100})\}/g', 
@@ -364,7 +364,7 @@ function prefixReplace(
  *  @param string	$tpl	Loaded template data
  *  @return string
  */
-function parseLang( string $tpl ) {
+function parseLang( string $tpl ) : string {
 	$lang		= language();
 	return prefixReplace( 'lang', $lang, $tpl );
 }
@@ -468,7 +468,7 @@ function decode( string $data ) : array {
 /**
  *  Load settings
  */
-function settings() {
+function settings() : array {
 	static $data;
 	
 	if ( isset( $data ) ) {
@@ -487,12 +487,12 @@ function settings() {
 /**
  *  Merge modified settings and save configuration
  */
-function saveSettings( array $params ) {
+function saveSettings( array $params ) : int {
 	$data			= settings();
 	$data['settings']	= $params;
 	
 	$out			= encode( $data );
-	\file_put_contents( SETTINGS, $out );
+	return \file_put_contents( SETTINGS, $out );
 }
 
 
@@ -578,7 +578,7 @@ function setInsert(
 /**
  *  Get a single item by ID
  */
-function getSingle( int $id, string $sql ) {
+function getSingle( int $id, string $sql ) : array {
 	$data	= getResults( $sql, [ ':id' => $id ] );
 	if ( empty( $data ) ) {
 		return $data[0];
@@ -634,7 +634,7 @@ function findPostByPermalink( string $link ) : array {
 /**
  *  Get post sibling posts
  */
-function findPostSiblings( int $prev, int $next ) {
+function findPostSiblings( int $prev, int $next ) : array {
 	$out	= [];
 	
 	if ( $prev > 0 ) {
@@ -736,7 +736,8 @@ function findPostBySearch( int $page, string $search ) : array {
 	}
 	
 	$keys	= implode( ', ', array_keys( $param ) );
-	$sql	= "SELECT * FROM index_view WHERE id IN ( $keys )";
+	$sql	= 
+	"SELECT * FROM index_view WHERE id IN ( $keys )";
 	
 	return getResults( $sql, $param );
 }
@@ -768,7 +769,7 @@ function setTags( int $id, array $tags ) {
 /**
  *  Store new post
  */
-function newPost( array $data ) {
+function newPost( array $data ) : array {
 	$sql		= 
 	"INSERT INTO posts ( title, parent_id, user_id, summary, 
 		body, published ) VALUES ( :title, :parent, 
@@ -786,6 +787,7 @@ function newPost( array $data ) {
 	
 	$data['id'] = setInsert( $sql, $params );
 	setTags( $data['id'], $data['tags'] );
+	
 	return $data;
 }
 
@@ -916,7 +918,7 @@ function findUserByUsername( string $username ) : array {
 /**
  *  Save user details by creating a new record or updating existing one
  */
-function saveUser( array $data ) : int {
+function saveUser( array $data ) : array {
 	if ( $data['id'] > 0 ) {
 		$sql	= 
 		"UPDATE users SET bio = :bio, display = :display, 
@@ -930,28 +932,32 @@ function saveUser( array $data ) : int {
 			':id'		=> $data['id']
 		] );
 		
-		return ( int ) $data['id'];
+		return $data;
 	} 
 	
 	$sql	= 
 	"INSERT INTO users ( username, password, status ) 
 		VALUES( :username, :password, :status )";
 	
-	return 
+	$data['id'] = 
 	setInsert( $sql, [ 
 		':username'	=> $data['username'],
 		':password'	=> $data['password'],
 		':status'	=> $data['status']
 	] );
+	
+	return $data;
 }
 
 /**
  *  Set a new password for the user
  */
-function savePassword( ( int ) $id, string $password ) {
+function savePassword( int $id, string $password ) : bool {
 	$sql	= 
 	"UPDATE users SET password = :password 
 		WHERE id = :id";
+	
+	return
 	setUpdate( $sql, [ 
 		':password'	=> $password, 
 		':id'		=> $id 
@@ -1544,14 +1550,14 @@ function username( string $text ) : string {
 	$text = title( $text );
 	
 	return 
-	\preg_replace( '~[^\\pL_\-\.\d]+~u', '', $text );
+	\trim( \preg_replace( '~[^\\pL_\-\.\d]+~u', '', $text ) );
 	//\preg_replace( '/^[a-z0-9_\-\.]/i', '', $text ); 
 }
 
 /**
  *  Password filter
  */
-function password( $value ) {
+function password( $value ) : string {
 	$value = pacify( $value ?? ''  );
 	
 	// Passwords only set to max size
@@ -1562,7 +1568,7 @@ function password( $value ) {
 /**
  *  Handle tags
  */
-function taglist( $value ) {
+function taglist( $value ) : array {
 	$value	= pacify( $value ?? '' );
 	$vals	= \explode( ',', $value );
 	$uf	= [];
@@ -1575,14 +1581,16 @@ function taglist( $value ) {
 /**
  *  Datetime filter
  */
-function datetime( $value ) {
-	return \strtotime( pacify( $value ) ?? \utc() );
+function datetime( $value ) : int {
+	$test = \strtotime( pacify( $value ) ?? \utc() );
+	
+	return ( false === $test ) ? time() : $test;
 }
 
 /**
  *  HTML whitelist filter
  */
-function html( $value ) {
+function html( $value ) : string {
 	static $white;
 	
 	if ( !isset( $white ) ) {
@@ -1630,14 +1638,6 @@ function html( $value ) {
 	
 	// Apply embedded media
 	return embeds( $html );
-}
-
-function validateCsrf( $value ) {
-	$value = $value ?? '';
-	if ( empty( $value ) ) {
-		return false;
-	}
-	
 }
 
 /**
@@ -2217,7 +2217,10 @@ function send(
 	int	$code		= 200,
 	string $content	= ''
 ) {
-	$this->preamble();
+	$proto = $_SERVER['SERVER_PROTOCOL'];
+	httpCode( $proto, $code );
+	preamble();
+	
 	echo $content;
 	die();
 }
@@ -3292,7 +3295,7 @@ function viewRegister( array $route ) {
 		send( 403, MSG_REGCLOSED );
 	}
 	$root		= getRoot( $conf );
-	$theme		= getTemplate( $conf, 'register' );
+	$htpl		= getTemplate( $conf, 'register' );
 	$tpl		= [
 		'{page_title}'=> $conf['title'],
 		'{root}'	=> $root,
@@ -3301,7 +3304,8 @@ function viewRegister( array $route ) {
 		'{action}'	=> $root. 'register'
 	];
 	
-	send( 200, \strtr( $theme, $tpl ) );
+	$htpl		= parseLang( $htpl );
+	send( 200, \strtr( $htpl, $tpl ) );
 }
 
 /**
@@ -3338,12 +3342,27 @@ function doRegister( array $route ) {
 		send( 403, MSG_FORMEXP );
 	}
 	
+	// Empty check
+	if ( 
+		empty( $form['username'] ) || 
+		empty( $form['password'] )
+	) {
+		
+	}
+	
 	// Passwords must match
 	if ( 0 !== strcmp( $form['password'], $form['password2'] ) ) {
 		send( 401, MSG_PASSMATCH );
 	}
 	
-	var_dump( $data );
+	$data	= saveUser( [
+		'username'	=> $form['username'],
+		'password'	=> $form['password'],
+		'status'	=> AUTH_USER		// Base status
+	] );
+	
+	// Once registration is complete, send to login with redirect
+	sendLogin( $conf, 'profile/' . $data['id'] . '/' . $data['username'] );
 }
 
 /**
@@ -3367,7 +3386,7 @@ function viewChPass( array $route ) {
 		'{action}'	=> $root . 'changepass'
 	];
 	
-	$htpl	= parseLang( $htpl );
+	$htpl		= parseLang( $htpl );
 	send( 200, \strtr( $htpl, $tpl ) );
 }
 
