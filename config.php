@@ -3,17 +3,38 @@
 /**
  *  Core site settings
  */
-define( 'SETTINGS',		'data/site.json' );
+
+/**
+ *  Relative path based on config.php file location
+ */
+define( 'PATH',		\realpath( \dirname( __FILE__ ) ) . '/' );
+
+/**
+ *  Remember to enable write permissions to site.json and site.db. 
+ *  If you intend to run the /data/backup.sh script, also enable write 
+ *  permissions to the /data/backups folder
+ */
+define( 'SETTINGS',		PATH . 'data/site.json' );
 
 /**
  *  Database location
  */
-define( 'DATA',		'data/site.db' );
+define( 'DATA',		PATH . 'data/site.db' );
 
 /**
  *  Database connection timeout
  */
 define( 'DATA_TIMEOUT',	5 );
+
+/**
+ *  Cache directory
+ */
+deifine( 'CACHE',		PATH . 'data/cache/' );
+
+/**
+ *  Cache duration
+ */
+define( 'CACHE_TTL',		1800 );		// 30 minutes
 
 /**
  *  Language translation file
@@ -24,12 +45,6 @@ define( 'LANGUAGE',		'data/language.en-us.json' );
  *  This setting is only needed once during setup
  */
 define( 'DEFAULT_USER',	'admin' );
-
-/**
- *  Remember to enable write permissions to site.json and site.db. 
- *  If you intend to run the /data/backup.sh script, also enable write 
- *  permissions to the /data/backups folder
- */
 
 /**
  *  Theme directory
