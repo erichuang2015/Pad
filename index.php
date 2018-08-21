@@ -498,6 +498,101 @@ function saveSettings( array $params ) : int {
 
 
 /**
+ *  Caching
+ */
+
+/**
+ *  Create cache save path based on current cache directory
+ *  
+ *  @param string	$key	Generated cache key
+ *  @param bool		$create Create path structure if true
+ *  @param string	$root	Default page root to begin
+ *  @return string
+ */
+function cachePath(
+	string		$key,
+	bool		$create,
+	string		$root		= \CACHE
+) : string {
+	$segs	= \rtrim( $root, '/' ) . '/';
+	$parts	= \str_split( $key, 4 );
+		
+	// Only getting creation path
+	if ( !$create ) {
+		return
+		$segs . '/' . \implode( '/', $parts ) . '/' . $key;
+	}
+	
+	// Iterate through segments and create each directory
+	foreach( $parts as $part ) {
+		$segs .= $s . $part;
+		writeDir( $segs );
+	}
+	
+	return $segs . '/' . $key;
+}
+	
+/**
+ *  Create a directory if it doesn't exist
+ *  Owner: read/write
+ *  Everyone else: read
+ */
+function writeDir( string $dir ) {
+	if ( !\is_dir( $dir ) ) {
+		\mkdir( $dir, 0644 );
+	}
+}
+
+/**
+ *  Check if cache content exists and hasn't expired yet
+ */
+function cacheHit( $path ) : bool {
+	if ( empty( $this->path ) ) {
+		return false;
+	}
+	
+	if ( \file_exists( $path ) ) {
+		$t = \filemtime( $path );
+		if ( false === $t ) {
+			return false;
+		}
+		return ( time() - $t ) < CACHE_TTL;
+	}
+	
+	return false;
+}
+
+/**
+ *  Get cached data (if any) by URI key
+ */
+function getCache( string $uri ) : string {
+	$key	= \hash( 'sha256', $uri );
+	$path	= cachePath( $key, false );
+	
+	if ( file_exists( $path ) ) {
+		return \file_get_contents( $path );
+	}
+	
+	return '';
+}
+
+/**
+ *  Save content to cache
+ */
+function saveCache( string $uri, string $content ) : bool {
+	$key	= \hash( 'sha256', $uri );
+	$path	= cachePath( $key, true );
+	
+	// Something went wrong?
+	if ( empty( $path ) ) {
+		return false;
+	}
+	
+	return 
+	\file_put_contents( $path, $content ) ? true : false;
+}
+
+/**
  *  Database
  */
 
@@ -2205,6 +2300,13 @@ function httpCode(
 function website() {
 	$url	= isSecure() ? 'https://' : 'http://';
 	return $url . $_SERVER['SERVER_NAME'];
+}
+
+/**
+ *  Current full URI including website
+ */
+function fullURI() {
+	return website() . $_SERVER['REQUEST_URI'];
 }
 
 /**
