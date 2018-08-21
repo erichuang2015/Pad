@@ -9,33 +9,36 @@
 <form action="{action}" method="post">
 	<input type="hidden" name="csrf" value="{csrf}">
 	<aside>
-		<p><label>Title: <input type="text" name="title" value="{site}" required></label></p>
-		<p><label>Date format: <input type="text" name="date_format" value="{date_format}" required></label></p>
-		<p><label>Timezone: {timezone}</label></p>
-		<p><label>Web root: <input type="text" name="webroot" value="{webroot}" required></label></p>
+		<p><label>{lang:forms:settings:title} <input type="text" name="title" value="{site}" required></label></p>
+		<p><label>{lang:forms:settings:dateformat} <input type="text" name="date_format" value="{date_format}" required></label></p>
+		<p><label>{lang:forms:settings:timezone} {timezone}</label></p>
+		<p><label>{lang:forms:settings:webroot} <input type="text" name="webroot" value="{webroot}" required></label></p>
 		
-		<p><label>Theme name: <input type="text" name="theme" value="{theme_name}" required></label></p>
-		<p><label>Posts per page: <input type="number" name="page_limit" value="15" required></label></p>
+		<p><label>{lang:forms:settings:theme} <input type="text" name="theme" value="{theme_name}" required></label></p>
+		<p><label>{lang:forms:settings:postlimit} <input type="number" name="page_limit" value="15" required></label></p>
 		
-		<p><label><input type="checkbox" name="show_full" value="1" {showfull}> Show page body</label></p>
-		<p><label><input type="checkbox" name="allow_register" value="1" {allow_register}> Allow registrations</label></p>
+		<p><label><input type="checkbox" name="show_full" value="1" {showfull}> {lang:forms:settings:showbody}</label></p>
+		<p><label><input type="checkbox" name="allow_register" value="1" {allow_register}> {lang:forms:settings:allowreg}</label></p>
 		
-		<p><label><input type="checkbox" name="force_tls" value="1" {force_tls}> Force TLS <span class="note">If TLS is not available, this can break your site</span></label></p>
+		<p><label><input type="checkbox" name="force_tls" value="1" {force_tls}> {lang:forms:settings:forcetls} 
+			<span class="note">{lang:forms:settings:tlsnote}</span></label></p>
 		
 	</aside>
 	<section>
-	<label>Tagline:
+	<label>{lang:forms:settings:tagline}
 		<textarea rows="2" cols="40" name="tagline" id="tagline">{tagline}</textarea></label>
-	<label>Copyright:
+	<label>{lang:forms:settings:copyright}
 		<textarea rows="2" cols="40" name="tagline" id="copyright">{copyright}</textarea></label>
 	
-	<label>Content security policy: <span class="note">JSON formatted, without comments</span>
+	<label>{lang:forms:settings:csp} <span class="note">{lang:forms:settings:cspnote}</span>
 		<textarea rows="10" cols="40" name="csp" id="csp">{csp}</textarea>
 	</section>
 </form>
 <footer>
-	<p><input name="save" type="submit" value="Save"></p>
-	<p><a href="{post_list}">Posts</a> | <a href="{manage}">New post</a> | <a href="{help}">Help</a></p>
+	<p><input name="save" type="submit" value="{lang:forms:settings:submit}"></p>
+	<p><a href="{post_list}">{lang:labels:postlist}</a> | 
+	<a href="{manage}">{lang:labels:newpost}</a>  | 
+	<a href="{help}">{lang:labels:help}</a></p>
 </footer>
 <script type="text/javascript" src="{theme}js/manage.js"></script>
 <script type="text/javascript" src="{theme}js/settings_ready.js"></script>
