@@ -1,0 +1,60 @@
+{
+	"forms"	: {
+		"login"		: {
+			"submit"	: "Login",
+			"username"	: "username",
+			"password"	: "password"
+		}, 
+		"register"	: {
+			"submit"	: "Register",
+			"username"	: "username",
+			"password"	: "password",
+			"repeatpass"	: "repeat password"
+		
+		}, 
+		"changepass"	: {
+			"submit"	: "Change password",
+			"oldpass"	: "old password",
+			"newpass"	: "new password"
+		}, 
+		"newpost"	: {
+			"save"		: "Save",
+			"publish"	: "Publish",
+			"title"		: "Title",
+			"slug"		: "Slug",
+			"publish"	: "Publish"
+		}, 
+		"editpost"	: {
+			"save"		: "Save changes",
+			"publish"	: "Publish",
+			"title"		: "Title",
+			"slug"		: "Slug",
+			"publish"	: "Publish",
+			"delete"	: "Delete this post",
+			"delconf"	: "Are you sure? This cannot be undone"
+		}, 
+		"bio"		: {
+			"display"	: "display name",
+			"profile"	: "profile info",
+			"submit"	: "Save profile"
+		}
+	},
+	"labels" : {
+		"previous"	: "Previous",
+		"next"		: "Next",
+		"home"		: "Home",
+		"manage"	: "Manage",
+		"home"		: "Edit",
+		"by"		: "By"
+	},
+	"errors" : {
+		"login" 	: "Please login first",
+		"regclosed"	: "Registrations are closed",
+		"passmatch"	: "Passwords must match",
+		"passerror"	: "Password error",
+		"loginfailed"	: "Login error",
+		"formexp"	: "Form expired",
+		"notfound"	: "Page not found",
+		"denied"	: "Permission to access or modify this resource is denied"
+	}
+}
