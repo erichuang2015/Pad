@@ -25,14 +25,14 @@ Delete *setup.php*.
 ## Permissions, backups etc...
 
 On \*nix systems, you can create the database from scratch by running  
-the *bash create.sh* or equivalent shell command, however it is already  
-included in this package.
+*bash create.sh* or equivalent shell command, however it is already  
+included in this package as */data/site.db*.
 
 Also on \*nix systems, you may need to enable write permissions to the  
 */data/site.db* file and the */data/backup* folder which can be used to  
 store backups your database
 
-To backup your database, run *bash backup.sh*.  The backup script can 
+To backup your database, run *bash backup.sh*. The backup script can  
 also be added to cron for automatic backups.
 
 ## Content formatting
@@ -55,7 +55,7 @@ or
 [vimeo 113315619]
 
 
-For PeerTube (any instance)
+For PeerTube (any instance):
 [peertube https://peertube.mastodon.host/videos/watch/56047136-00eb-4296-afc3-dd213fd6bab0]
 ```
 
