@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Editor</title>
+<title>{lang:labels:editor}</title>
 <meta charset="utf-8">
 <link rel="stylesheet" href="{theme}css/editor.css">
 </head>
@@ -10,19 +10,21 @@
 	<input type="hidden" name="csrf" value="{csrf}">
 	<input type="hidden" name="id" value="{id}">
 	<aside>
-		<p><input type="text" name="title" value="{title}" placeholder="Title" required></p>
-		<p><input type="text" name="slug" value="{slug}" placeholder="Slug"></p>
-		<p><input type="datetime-local" name="publish" value="{published}" placeholder="Publish on"></p>
+		<p><input type="text" name="title" value="{title}" placeholder="{lang:form:editpost:title}" required></p>
+		<p><input type="text" name="slug" value="{slug}" placeholder="{lang:form:editpost:slug}"></p>
+		<p><input type="datetime-local" name="publish" value="{published}" placeholder="{lang:form:editpost:publish}"></p>
 	</aside>
 	<section>
-		<textarea rows="10" cols="40" name="body" id="body" placeholder="Body" class="editor" required>{body}</textarea>
+		<textarea rows="10" cols="40" name="body" id="body" placeholder="{lang:form:editpost:body}" class="editor" required>{body}</textarea>
 	</section>
 </form>
 <footer>
 	<p><input name="preview" type="submit" value="Save"> | 
 			<input name="save" type="submit" value="Publish"></p>
 	{delete}
-	<p><a href="{post_list}">Posts</a> | <a href="{settings}">Settings</a><a href="{help}">Help</a></p>
+	<p><a href="{post_list}">{lang:labels:postlist}</a> | 
+	<a href="{settings}">{lang:labels:settings}</a> | 
+	<a href="{help}">{lang:labels:help}</a></p>
 </footer>
 <script type="text/javascript" src="{theme}js/manage.js"></script>
 <script type="text/javascript" src="{theme}js/editor_ready.js"></script>
