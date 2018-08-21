@@ -1249,7 +1249,7 @@ function postForm( array $filter, array $user ) {
 	
 	
 	$post	= savePost( $data );
-	sendPage( $conf, $post['id'] . '/' . $post['slug'] );
+	sendPage( $conf, $post['id'] . '/' . $post['slug'], 201 );
 }
 
 
@@ -2389,16 +2389,25 @@ function fullURI() {
  *  
  *  @param int		$code		HTTP Status code
  *  @param string	$content	Page data to send to client
+ *  @param bool		$cache		Cache page data if true
  */
 function send(
-	int	$code		= 200,
-	string $content	= ''
+	int		$code		= 200,
+	string 	$content	= '',
+	bool		$cache		= false
 ) {
 	$proto	= $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1';
 	httpCode( $proto, $code );
 	preamble();
 	
 	echo $content;
+	
+	// Also save to cache?
+	if ( $cache ) {
+		saveCache( fullURI(), $content );
+	}
+	
+	// End
 	die();
 }
 
@@ -2851,6 +2860,14 @@ function homepage( array $route, bool $feed = false ) {
 	
 	$theme		= getTemplate( $conf, 'home', $feed, false );
 	$page		= ( int ) ( $data['page'] ?? 1 );
+	
+	// First page? Send homepage with cache
+	if ( $page == 1 ) {
+		send( 200, 
+			indexView( $theme, $conf, $results, $page, $feed ), 
+			true 
+		);
+	}
 	send( 200, indexView( $theme, $conf, $results, $page, $feed ) );
 }
 
@@ -3038,7 +3055,7 @@ function viewPage( array $route ) {
 	}
 	
 	$htpl	= parseLang( $htpl );
-	send( 200, \strtr( $htpl, $tpl ) );
+	send( 200, \strtr( $htpl, $tpl ), true );
 }
 
 /**
@@ -3393,7 +3410,7 @@ function doProfile( array $route ) {
 	}
 	
 	saveUser( $form );
-	sendPage( $conf, '', 200 );
+	sendPage( $conf, '', 202 );
 }
 
 /**
