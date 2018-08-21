@@ -30,7 +30,8 @@ included in this package as */data/site.db*.
 
 Also on \*nix systems, you may need to enable write permissions to the  
 */data/site.db* file and the */data/backup* folder which can be used to  
-store backups your database
+store backups of your database. The */data/cache* folder will also need  
+write permissions.
 
 To backup your database, run *bash backup.sh*. The backup script can  
 also be added to cron for automatic backups.
