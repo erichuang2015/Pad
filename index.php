@@ -2999,11 +2999,16 @@ function viewProfile( array $route ) {
 		$htpl		= getTemplate( $conf, 'bio' );
 	}
 	
+	$username	= username( $data['username'] );
+	$display	= username( $data['display'] );
+	
 	// Template basics
 	$root		= getRoot( $conf );
 	$tpl		= [
 		'{page_title}'=> $conf['title'],
 		'{root}'	=> $root,
+		'{username}'	=> $username,
+		'{display}'	=> $display,
 		'{theme}'	=> getTheme( $conf )
 	];
 	
@@ -3022,15 +3027,13 @@ function viewProfile( array $route ) {
 		$tpl['{csrf}']	= getCsrf( 'profile' );
 		$tpl['{bio}']		= $data['bio'];
 		$tpl['{action}']	= 
-			$root . 'profile/' . $id . '/' . 
-			username( $data['username'] );
+			$root . 'profile/' . $id . '/' . $username;
 	// HTML view
 	} else {
 		$tpl['{bio}']		= html( $data['bio'] );
 	}
 	
 	send( 200, \strtr( $htpl, $tpl ) );
-	
 }
 
 /**
