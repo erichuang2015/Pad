@@ -502,9 +502,6 @@ function shutdown() {
 	cacheGC();
 }
 
-\register_shutdown_function( 'shutdown' );
-
-
 /**
  *  Caching
  */
@@ -2397,7 +2394,7 @@ function send(
 	int	$code		= 200,
 	string $content	= ''
 ) {
-	$proto = $_SERVER['SERVER_PROTOCOL'];
+	$proto	= $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1';
 	httpCode( $proto, $code );
 	preamble();
 	
@@ -2768,7 +2765,24 @@ function filterParams( $params ) {
  *  Route the current path according to the specified callback map
  */
 function route( array $routes, array $markers ) {
+	// Process request method for valid types
 	$verb		= strtolower( $_SERVER['REQUEST_METHOD'] );
+	switch( $verb ) {
+		// Standard
+		case 'post':
+		case 'get':
+			break;
+		
+		// No content sent
+		case 'head':
+			send( 200 );
+		
+		// Nothing else implemented
+		default:
+			send( 501 );
+	}
+	
+	// Request path
 	$path		= $_SERVER['REQUEST_URI'];
 	
 	$k		= array_keys( $markers );
@@ -3372,7 +3386,7 @@ function doProfile( array $route ) {
 	}
 	
 	saveUser( $form );
-	send( 200, '' );
+	sendPage( $conf, '', 200 );
 }
 
 /**
@@ -3837,6 +3851,9 @@ function notfound() {
  */
 function begin() {
 	$conf	= settings();
+	
+	// Handle shutdown
+	\register_shutdown_function( 'shutdown' );
 
 	// Begin routing
 	route( $conf['routes'], $conf['markers'] );
