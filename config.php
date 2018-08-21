@@ -16,6 +16,11 @@ define( 'DATA',		'data/site.db' );
 define( 'DATA_TIMEOUT',	5 );
 
 /**
+ *  Language translation file
+ */
+define( 'LANGUAGE',		'data/language.en-us.json' );
+
+/**
  *  This setting is only needed once during setup
  */
 define( 'DEFAULT_USER',	'admin' );
