@@ -112,7 +112,6 @@ try {
 	die( ERROR_DBVERSION );
 }
 
-$db	= getDb();
 $stm	= $db->prepare( "SELECT COUNT(id) FROM users;" );
 if ( $stm->execute() ) {
 	$c = $stm->fetchColumn();
