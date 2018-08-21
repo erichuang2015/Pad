@@ -1115,7 +1115,7 @@ function saveUser( array $data ) : array {
 	$data['id'] = 
 	setInsert( $sql, [ 
 		':username'	=> $data['username'],
-		':password'	=> $data['password'],
+		':password'	=> hashPassword( $data['password'] ),
 		':status'	=> $data['status']
 	] );
 	
@@ -1132,7 +1132,7 @@ function savePassword( int $id, string $password ) : bool {
 	
 	return
 	setUpdate( $sql, [ 
-		':password'	=> $password, 
+		':password'	=> hashPassword( $password ), 
 		':id'		=> $id 
 	] );
 }
@@ -3454,7 +3454,7 @@ function doLogin( array $route ) {
 	) ) {
 		// Re-save password if the hash is obsolete
 		if ( passNeedsRehash( $user['password'] ) ) {
-			savePassword( $user['id'], $user['password'] );
+			savePassword( $user['id'], $form['password'] );
 		}
 		
 		// Send to previously requested path, if any
