@@ -224,10 +224,15 @@ function signature( bool $raw = false ) {
 
 function sessionThrottle() : bool {
 	$check 	= 0;
-	$now		= time()
+	$now		= time();
 	
 	// Check session
 	sessionCheck();
+	
+	// Sender should not be served for the duration of this session
+	if ( isset( $_SESSION['kill'] ) ) {
+		send( 403 );
+	}
 	
 	// First visit?
 	$last	= $_SESSION['last'] ?? [];
@@ -279,10 +284,12 @@ function sessionThrottle() : bool {
 	
 	// Increase sleep delay
 	switch( $check ) {
+		// Send Too Many Requests
 		case 3:
 			sleep( 20 );
-			send( 304 );
-			
+			send( 429 );
+		
+		// Send not modified for the rest
 		case 2:
 			sleep( 10 );
 			send( 304 );
@@ -306,29 +313,25 @@ function request( string &$verb, string &$path ) {
 	// Session throttle
 	sessionThrottle();
 	
-	// Request path
-	if ( \strpos( $path, '..' ) ) {
+	// Request path (simpler filter before proper XSS)
+	if ( \strpos( $path, '..' ) || \strpos( $path, '<' ) ) {
 		send( 400 );
 	}
 	
-	// Possible XSS injection
+	// Possible XSS, directory traversal, or file upload detected
 	if ( 
-		\preg_match( RX_XSS2, $path ) || 
 		\preg_match( RX_XSS3, $path ) || 
-		\preg_match( RX_XSS4, $path ) 
+		\preg_match( RX_XSS4, $path ) || 
+		!empty( $_FILES )
 	) {
-		send( 403 );
+		// Set dangerous request flag to this session
+		$_SESSION['kill'] = time();
 		send( 403 );
 	}
 	
 	// Request size hard limit
 	if ( \mb_strlen( $path, '8bit' ) > 255 ) {
 		send( 414 );
-	}
-	
-	// File upload detected
-	if ( !empty( $_FILES ) ) {
-		send( 413 );
 	}
 	
 	// Check request method
@@ -2547,6 +2550,10 @@ function httpCode(
 			
 		case 415:
 			$msg = 'Unsupported Media Type';
+			break;
+			
+		case 429:
+			$msg = 'Too Many Requests';
 			break;
 			
 		case 500:
