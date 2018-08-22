@@ -6,6 +6,7 @@
 define( 'MSG_LOGIN',		'Please login first' );
 define( 'MSG_NOTFOUND',	'Page not found' );
 define( 'MSG_CODEDETECT',	'Error: Server-side code detected' );
+define( 'MSG_SETTINGS',	'Error loading settings' );
 define( 'MSG_REGCLOSED',	'Registrations are closed' );
 define( 'MSG_PASSMATCH', 	'Passwords must match' );
 define( 'MSG_PASSERROR',	'Password error' );
@@ -153,11 +154,11 @@ private function getIP() : string {
  */
 function isSecure() : bool {
 	$ssl	= $_SERVER['HTTPS'] ?? '0';
-	$port	= ( int ) ( $_SERVER['SERVER_PORT'] ?? 80 );
 	if ( $ssl == 'on' || $ssl == '1' ) {
 		return true;
 	}
 	
+	$port	= ( int ) ( $_SERVER['SERVER_PORT'] ?? 80 );
 	if ( $port == 443 ) {
 		return true;
 	}
@@ -168,7 +169,7 @@ function isSecure() : bool {
 /**
  *  Create current visitor's browser signature by sent headers
  */
-function signature( bool $raw ) {
+function signature( bool $raw = false ) {
 	static $rawsig;
 	static $sig;
 	
@@ -455,13 +456,10 @@ function decode( string $data ) : array {
 		\JSON_BIGINT_AS_STRING
 	);
 	
-	if ( empty( $data ) ) {
+	if ( empty( $data ) || false === $data ) {
 		return [];
 	}
 	
-	if ( false === $data ) {
-		return [];
-	}
 	return $data;
 }
 
@@ -477,7 +475,7 @@ function settings() : array {
 	
 	$file	= loadFile( SETTINGS );
 	if ( empty( $file ) ) {
-		die( 'Error loading settings' );
+		die( MSG_SETTINGS );
 	}
 	$data = decode( $data );
 	
@@ -485,10 +483,85 @@ function settings() : array {
 }
 
 /**
+ *  Configuration setting retrieval and type conversion
+ *  
+ *  @param string	$name		Setting name
+ *  @param string	$type		Type conversion (default string)
+ *  @param mixed	$default	Default value if missing
+ *  @return mixed
+ */
+function config(
+	string		$name,
+	string		$type		= 'string',
+			$default	= null
+) {
+	static $out;
+	static $data;
+	
+	if ( isset( $out[$name] ) ) {
+		return $out[$name];
+	}
+	
+	// Get only settings from configuration
+	if ( !isset( $data ) ) {
+		$conf	= settings();
+		$data	= $conf['settings'] ?? [];
+	}
+	
+	// Configure fallback values
+	$tmp = $data[$name] ?? $default ?? '';
+	
+	// Type juggling
+	switch( $type ) {
+		case 'int':
+		case 'integer':
+			$out[$name]	= 
+			\is_int( $tmp ) ? $tmp : ( int ) $tmp;
+			break;
+			
+		case 'float':
+			$out[$name]	=
+			\is_float( $tmp ) ? $tmp : ( float ) $tmp;
+			break;
+			
+		case 'bool':
+		case 'boolean':
+			$out[$name]	= 
+			\is_bool( $tmp ) ? $tmp : ( bool ) $tmp;
+			break;
+			
+		case 'array':
+			$out[$name]	= 
+			\is_array( $tmp ) ? $tmp : ( array ) $tmp;
+			break;
+		
+		case 'notags':
+			$out[$name]	= \strip_tags( 
+				\is_string( $tmp ) ? $tmp : ( string ) $tmp
+			);
+			break;
+			
+		case 'html':
+			$out[$name]	= html(
+				\is_string( $tmp ) ? $tmp : ( string ) $tmp
+			);
+			break;
+			
+		default
+			$out[$name]	= 
+			\is_string( $tmp ) ? $tmp : ( string ) $tmp;
+	}
+	
+	return $out[$name];
+}
+
+/**
  *  Merge modified settings and save configuration
  */
 function saveSettings( array $params ) : int {
 	$data			= settings();
+	
+	// Modify only settings
 	$data['settings']	= $params;
 	
 	$out			= encode( $data );
@@ -499,7 +572,11 @@ function saveSettings( array $params ) : int {
  *  Cleanup and other extras
  */
 function shutdown() {
-	cacheGC();
+	/**
+	 *  Commented for now to make sure it works correctly
+	 *  TODO: Make garbage collection fire less frequently
+	 */
+	// cacheGC();
 }
 
 /**
@@ -824,13 +901,13 @@ function findPostsByIndex(
 	array	$data,
 	bool	$drafs = false 
 ) : array {
-	$conf		= settings();
 	$sst		= $drafts ? '' : 'WHERE status > 0';
 	$sql		=
 	"SELECT * FROM index_view $sst LIMIT :limit OFFSET :offset;";
 	
 	$page		= ( int ) ( $data['page'] ?? 1 );
-	$limit		= ( int ) ( $conf['page_limit'] ?? 15 );
+	$limit		= config( 'page_limit', 'int', 15 );
+	
 	$param	= [
 		':limit'	=> $limit,
 		':offset'	=> $limit * ( $page - 1 )
@@ -843,7 +920,6 @@ function findPostsByIndex(
  *  Get posts by date archive
  */
 function findPostsArchive( array $data ) : array {
-	$conf		= settings();
 	$dates		= enforceDates( $data );
 	$page		= ( int ) ( $data['page'] ?? 1 );
 	$search	= [ $dates[0] ];
@@ -869,7 +945,7 @@ function findPostsArchive( array $data ) : array {
 			$label	= 'archive_y';
 	}
 	
-	$limit	= ( int ) ( $conf['page_limit'] ?? 15 );
+	$limit	= config( 'page_limit', 'int', 15 );
 	$sql	=
 	"SELECT * FROM index_view WHERE $label = :search 
 		LIMIT :limit OFFSET :offset;";
@@ -887,8 +963,7 @@ function findPostsArchive( array $data ) : array {
  *  Full text post search
  */
 function findPostBySearch( int $page, string $search ) : array {
-	$conf	= settings();
-	$limit	= ( int ) ( $conf['page_limit'] ?? 15 );
+	$limit		= config( 'page_limit', 'int', 15 );
 	$ssql	= 
 	"SELECT docid FROM post_search WHERE body 
 		MATCH :search LIMIT :limit OFFSET :offset";
@@ -1194,8 +1269,7 @@ function passNeedsRehash(
  *  Check for deletion request and confirmation
  */
 function postDeleteCheck( $data ) {
-	$conf	= settings();
-	$root	= getRoot( $conf );
+	$root	= getRoot();
 	
 	// Delete check
 	if ( !$data['delete'] && !$data['delconf'] ) {
@@ -1204,7 +1278,7 @@ function postDeleteCheck( $data ) {
 	
 	// Nothing to delete
 	if ( empty( $data['id'] ) ) {
-		sendPage( $conf, 'manage' );
+		sendPage( 'manage' );
 	} else {
 		$post = 
 		findPreviewById( ( int ) $data['id'] );
@@ -1249,7 +1323,7 @@ function postForm( array $filter, array $user ) {
 	
 	
 	$post	= savePost( $data );
-	sendPage( $conf, $post['id'] . '/' . $post['slug'], 201 );
+	sendPage( $post['id'] . '/' . $post['slug'], 201 );
 }
 
 
@@ -1764,8 +1838,16 @@ function html( $value ) : string {
 	static $white;
 	
 	if ( !isset( $white ) ) {
-		$conf		= settings();
-		$white		= $conf['whitelist'];
+		// Set allowed whitelist or default to simple tags
+		$conf	= settings();
+		
+		$white	= 
+		empty( $conf['whitelist'] ) ? [ 
+			'a'		=> [ 'style', 'title', 'href', 'rel' ],
+			'p'		=> [ 'style' ],
+			'img'		=> [ 'style', 'src', 'title', 'alt' ],
+			'blockquote'	=> [ 'style' ]
+		] : $conf['whitelist'];
 	}
 	
 	// Preliminary cleaning
@@ -2159,7 +2241,6 @@ function preamble(
 	bool	$send_csp	= true,
 	bool	$send_type	= true
 ) {
-	$conf	= settings();
 	\header_remove( 'X-Powered-By' );
 	
 	if ( $send_type ) {
@@ -2176,7 +2257,7 @@ function preamble(
 	\header( 'X-Frame-Options: deny', true );
 	
 	// Check if TLS is forced or if the client requested HTTPS
-	$tls	= $conf['force_tls'] ?? false;
+	$tls	= config( 'force_tls', 'bool', false );
 	if ( $tls || isSecure() ) {
 		\header(
 			'Strict-Transport-Security: ' . 
@@ -2187,7 +2268,7 @@ function preamble(
 	
 	// If sending CSP and content checksum isn't used
 	if ( $send_csp ) {
-		$cjp = $conf['csp'] ?? DEFAULT_CSP;
+		$cjp = config( 'csp', 'array', encode( DEFAULT_JCSP ) );
 		$csp = 'Content-Security-Policy: ';
 		foreach ( $cjp as $k => $v ) {
 			$csp .= "$k $v;";
@@ -2414,11 +2495,10 @@ function send(
 /**
  *  Login path redirect helper
  *  
- *  @param array	$conf		Configuration settings
  *  @param string	$redir		Relative path to prepend login
  */
-function sendLogin( array $conf, string $redir = '' ) {
-	$path = getRoot( $conf ) . 'login/';
+function sendLogin( string $redir = '' ) {
+	$path = getRoot() . 'login/';
 	
 	// Send redirect with current website prefixed
 	redirect( 401, website() . $path . $redir );
@@ -2427,16 +2507,14 @@ function sendLogin( array $conf, string $redir = '' ) {
 /**
  *  Multi-page redirect helper
  *  
- *  @param array	$conf		Configuration settings
  *  @param string	$page		Relative path to redirect
  *  @param int		$code		HTTP Status code
  */
 function sendPage( 
-	array		$conf,
 	string		$page		= '',
 	int		$code		= 200
 ) {
-	$page = getRoot( $conf ) . $page;
+	$page = getRoot() . $page;
 	
 	// Send redirect with requested code
 	redirect( $code, website() . $page );
@@ -2453,7 +2531,6 @@ function redirect(
 	string		$path		= ''
 ) {
 	\ob_end_clean();
-	$conf	= settings();
 	
 	$url	= parse_url( $path );
 	$host	= $url['host'] ?? '';
@@ -2464,7 +2541,7 @@ function redirect(
 	}
 	
 	// Get get current path
-	$path	= getRoot( $conf ) . $url['path'] ?? '';
+	$path	= getRoot() . $url['path'] ?? '';
 	
 	// Directory traversal
 	$path	= \preg_replace( '/\.{2,}', '.', $path );
@@ -2484,14 +2561,12 @@ function redirect(
 /**
  *  Get the configured theme
  * 
- *  @param array	$conf		Configuration settings
  *  @param bool		$feed		Set true if this is a feed page
  *  @param bool		$admin		Set true if this is an admin page
  *  
  *  @return string
  */
 function getTheme(
-	array		$conf,
 	bool		$feed		= false,
 	bool		$admin		= false
 ) {
@@ -2507,7 +2582,10 @@ function getTheme(
 	if ( isset( $theme ) ) {
 		return $theme;
 	}
-	$theme		= THEME_DIR . $conf['theme'] . '/';
+	$theme		= 
+		THEME_DIR . 
+		config( 'theme', 'string', 'goethe' ) . '/';
+	
 	return $theme;
 }
 
@@ -2531,14 +2609,12 @@ function getAdminTheme() {
 /**
  *  Get formatting template
  *  
- *  @param array	$conf		Configuration settings
  *  @param string	$name		HTML template name
  *  @param bool		$feed		Set true if this is a feed page
  *  @param bool		$admin		Set true if this is an admin page
  *  @return string
  */
 function getTemplate(
-	array		$conf,
 	string		$name,
 	bool		$feed	= false,
 	bool		$admin	= false
@@ -2546,7 +2622,7 @@ function getTemplate(
 	if ( $admin ) {
 		return getAdminTheme() . $name . '.html';
 	}
-	return getTheme( $conf, $feed, $admin ) . $name . '.html';
+	return getTheme( $feed, $admin ) . $name . '.html';
 }
 
 /**
@@ -2589,35 +2665,42 @@ function timezoneSelect( string $selected ) : string {
  *  
  *  @return string
  */
-function getRoot( $conf ) {
-	return \rtrim( $conf['webroot'] ?? '',  '/' ) . '/';
+function getRoot() {
+	static $root;
+	if ( isset( $root ) ) {
+		return $root;
+	}
+	$root = 
+	\rtrim( config( 'webroot' ), '/' ) . '/';
+	
+	return $root;
 }
 
 /**
  *  Format post results with given template parameters
  *  
- *  @param array	$conf		Configuration settings
  *  @param array	$results	List of posts to format
  *  @param bool		$feed		Set true if this is a feed page
  *  @param bool		$admin		Set true if this is an admin page
  *  @return string
  */
-function formatPosts( $conf, $results, $feed, $admin ) {
+function formatPosts( $results, $feed, $admin ) {
 	$htpl			= 
-	getTemplate( $conf, 'postfrag', $feed, $admin );
+	getTemplate( 'postfrag', $feed, $admin );
 	
 	$atpl			= 
-	getTemplate( $conf, 'authorfrag', $feed, $admin );
+	getTemplate( 'authorfrag', $feed, $admin );
 	
 	$out			= '';
-	$root			= getRoot( $conf );
+	$root			= getRoot();
+	$full			= config( 'show_full', 'bool', true );
 	
 	foreach ( $results as $k => $v ) {
 		// Set relative post edit path
 		$v['post_edit']	= $root . $v['post_edit'];
 		
 		$out			.= 
-		formatPost( $conf, $htpl, $atpl, $v );
+		formatPost( $full, $htpl, $atpl, $v );
 	}
 	
 	return $out;
@@ -2631,8 +2714,8 @@ function formatPosts( $conf, $results, $feed, $admin ) {
  *  @param array	$post		Post row from database
  *  @return string
  */
-function formatPost( $conf, $htpl, $atpl, $post ) {
-	$root			= getRoot( $conf );
+function formatPost( bool $full, $htpl, $atpl, $post ) {
+	$root			= getRoot();
 	// Format author details
 	$post['author']	= 
 	\strtr( $atpl, [ 
@@ -2643,7 +2726,7 @@ function formatPost( $conf, $htpl, $atpl, $post ) {
 	
 	// Parse content into HTML if full page requested
 	$post['body']		=> 
-		$conf['show_full'] ? html( $post['body'] ) : '';
+		$full ? html( $post['body'] ) : '';
 	
 	return \strtr( $htpl, $post );
 }
@@ -2651,16 +2734,15 @@ function formatPost( $conf, $htpl, $atpl, $post ) {
 /**
  *  Next/Previous navigation links
  *  
- *  @param array	$conf		Configuration settings
  *  @param int		$page		Current pagination index
  *  @param int		$count		Number of records in this index
  *  @return string
  */
-function navPage( $conf, $page, $count ) {
+function navPage( $page, $count ) {
 	$pm	= $page - 1;
 	$pp	= $page + 1;
-	$lm	= $conf['page_limit'];
-	$root	= getRoot( $conf );
+	$lm	= config( 'page_limit', 'int', 15 );
+	$root	= getRoot();
 	
 	$out	= '';
 	
@@ -2688,12 +2770,11 @@ function navPage( $conf, $page, $count ) {
 /**
  *  Format links to neighboring pages
  *  
- *  @param array	$conf		Configuration settings
  *  @param array	$siblings	Posts to create link details
  *  @return string
  */
-function siblingPages( $conf, array $siblings ) {
-	$root	= rtrim( getRoot( $conf ), '/' );
+function siblingPages( array $siblings ) {
+	$root	= rtrim( getRoot(), '/' );
 	$out	= '';
 	foreach ( $siblings as $s ) {
 		$out .= \strtr( NAV_TPL [
@@ -2711,28 +2792,27 @@ function siblingPages( $conf, array $siblings ) {
  */
 function indexView(
 	string		$theme,
-	array		$conf,
 	array		$results,
 	int		$page		= 1,
 	bool		$feed		= false,
 	bool		$admin		= false,
 	string		$search	= ''
 ) {
-	$root		= getRoot( $conf );
+	$root		= getRoot();
 	$content	= 
 	\strtr( $theme, [
-		'{theme}'		=> getTheme( $conf, $feed, $admin ),
+		'{theme}'		=> getTheme( $feed, $admin ),
 		'{date_gen}'		=> rfcDate(),
-		'{page_title}'	=> $conf['title'],
-		'{tagline}'		=> $conf['tagline'],
+		'{page_title}'	=> config( 'title', 'notags' ),
+		'{tagline}'		=> config( 'tagline', 'notags' ),
 		'{home}'		=> $root,
 		'{manage}'		=> $root . 'manage',
 		'{search}'		=> $search,
-		'{copyright}'		=> $conf['copyright'],
+		'{copyright}'		=> config( 'copyright', 'html' ),
 		'{page_body}'		=> 
-			formatPosts( $conf, $results, $feed, $admin ),
+			formatPosts( $results, $feed, $admin ),
 		'{navpages}'		=> 
-			navPage( $conf, $page, count( $results ) )
+			navPage( $page, count( $results ) )
 	] );
 	
 	return parseLang( $content );
@@ -2840,7 +2920,6 @@ function route( array $routes, array $markers ) {
  *  Home / Index page / RSS feed route 
  */
 function homepage( array $route, bool $feed = false ) {
-	$conf		= settings();
 	$data		= 
 	\filter_var_array( $route, [
 		'page'	=> [
@@ -2858,24 +2937,23 @@ function homepage( array $route, bool $feed = false ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	
-	$theme		= getTemplate( $conf, 'home', $feed, false );
+	$theme		= getTemplate( 'home', $feed, false );
 	$page		= ( int ) ( $data['page'] ?? 1 );
 	
 	// First page? Send homepage with cache
 	if ( $page == 1 ) {
 		send( 200, 
-			indexView( $theme, $conf, $results, $page, $feed ), 
+			indexView( $theme, $results, $page, $feed ), 
 			true 
 		);
 	}
-	send( 200, indexView( $theme, $conf, $results, $page, $feed ) );
+	send( 200, indexView( $theme, $results, $page, $feed ) );
 }
 
 /**
  *  View posts by date archive
  */
 function archive( array $route ) {
-	$config	= settings();
 	$year		= ( int ) \date( 'Y', time() );
 	$data		= 
 	\filter_var_array(
@@ -2921,9 +2999,9 @@ function archive( array $route ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	
-	$theme		= getTemplate( $conf, 'home', $feed, false );
+	$theme		= getTemplate( 'home', $feed, false );
 	$page		= ( int ) ( $data['page'] ?? 1 );
-	send( 200, indexView( $theme, $conf, $results, $page ) );
+	send( 200, indexView( $theme, $results, $page ) );
 }
 
 /**
@@ -2937,7 +3015,6 @@ function feed( array $route ) {
  *  Handle showing single page
  */
 function viewPage( array $route ) {
-	$config	= settings();
 	$data		= 
 	\filter_var_array(
 		$route, 
@@ -2999,30 +3076,32 @@ function viewPage( array $route ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	 
-	$htpl			= getTemplate( $conf, 'post' );
-	$root			= getRoot( $conf );
+	$htpl			= getTemplate( 'post' );
+	$root			= getRoot();
 	
+	$stitle		= config( 'title', 'notags' );
+	$title			= $post['title'] . ' - ' . $stitle;
 	
 	$tpl			= [
-		'{site_title}'=> $post['title'] . ' - ' . $conf['title'],
-		'{page_title}'=> $conf['title'],
-		'{tagline}'	=> $conf['tagline'],
+		'{site_title}'=> $title,
+		'{page_title}'=> $stitle
+		'{tagline}'	=> config( 'tagline', 'notags' )
 		'{root}'	=> $root,
 		'{page_url}'	=> $root,
 		'{manage}'	=> $root . 'manage',
-		'{theme}'	=> getTheme( $conf ) . '/',
+		'{theme}'	=> getTheme() . '/',
 		'{post_edit}' => $root . $post['post_edit']
 	];
 	
 	// Has copyright feature
 	if ( tplHas( $htpl, 'copyright' ) ) {
-		'{copyright}'	=> html( $conf['copyright'] );
+		'{copyright}'	=> config( 'copyright', 'html' );
 	} 
 	
 	// Has author feature
 	if ( tplHas( $htpl, 'author' ) ) {
 		// Apply author template
-		$atpl			= getTemplate( $conf, 'authorfrag' );
+		$atpl			= getTemplate( 'authorfrag' );
 		$tpl['{author}']	= 
 		\strtr( $atpl, [ 
 			'{name}'	=> $post['author'],
@@ -3048,7 +3127,7 @@ function viewPage( array $route ) {
 		// Have neighbors?
 		if ( count( $siblings ) ) {
 			$post['{siblings}']	= 
-				siblingPages( $conf, $siblings );
+				siblingPages( $siblings );
 		} else {
 			$post['{siblings}']	= '';
 		}
@@ -3090,9 +3169,9 @@ function search( array $route ) {
 		send( 404, MSG_NOTFOUND );
 	}
 	
-	$theme		= getTemplate( $conf, 'home', $feed, false );
+	$theme		= getTemplate( 'home', $feed, false );
 	send( 200, indexView( 
-		$theme, $conf, $results, $page, false, false, $search
+		$theme, $results, $page, false, false, $search
 	) );
 }
 
@@ -3106,11 +3185,9 @@ function newPage( array $route ) {
 		send( 403, MSG_LOGIN );
 	}
 	
-	$conf			= settings();
-	
 	// Load post template and get root
-	$htpl			= getTemplate( $conf, 'newpost', false, true );
-	$root			= getRoot( $conf );
+	$htpl			= getTemplate( 'newpost', false, true );
+	$root			= getRoot();
 	
 	$tpl			= [
 		'{theme}'	=> getAdminTheme(),
@@ -3198,18 +3275,17 @@ function editPage( array $route ) {
 	
 	// Check authorization
 	$user		= authUser();
-	$conf		= settings();
 	
 	if ( empty( $user ) ) {
-		sendLogin( $conf, 'manage/edit/' . $post['id'] );
+		sendLogin( 'manage/edit/' . $post['id'] );
 	}
 	
 	// Load full post details
 	$post		= findPostById( $id );
 	
 	// Load post template and get Root
-	$htpl		= getTemplate( $conf, 'editpost', false, true );
-	$root		= getRoot( $conf );
+	$htpl		= getTemplate( 'editpost', false, true );
+	$root		= getRoot();
 	
 	// Fill template placeholders
 	$tpl			= [
@@ -3223,7 +3299,7 @@ function editPage( array $route ) {
 		'{published}'	=> rfcDate( $post['published'] ),
 		'{body}'	=> pacify( $post['body'] ),
 		'{delete}'	= 
-		getTemplate( $conf, 'deletefrag', false, true )
+		getTemplate( 'deletefrag', false, true )
 	];
 	
 	$htpl	= parseLang( $htpl );
@@ -3235,9 +3311,8 @@ function editPage( array $route ) {
  */
 function doEditPage( array $route ) {
 	$user		= authUser();
-	$conf		= settings();
 	if ( empty( $user ) ) {
-		sendLogin( $conf, '' );
+		sendLogin( '' );
 	}
 	
 	$filter	= 
@@ -3291,7 +3366,6 @@ function doEditPage( array $route ) {
  */
 function viewProfile( array $route ) {
 	$user		= authUser();
-	$conf		= settings();
 	
 	// User id from route
 	$id		= ( int ) $route['id'];
@@ -3313,24 +3387,24 @@ function viewProfile( array $route ) {
 		( $id == $user['id'] )	||
 		( $user['status'] >= AUTH_EDITOR )
 	) {
-		$htpl		= getTemplate( $conf, 'bioedit' );
+		$htpl		= getTemplate( 'bioedit' );
 	
 	// If not, send public profile
 	} else {
-		$htpl		= getTemplate( $conf, 'bio' );
+		$htpl		= getTemplate( 'bio' );
 	}
 	
 	$username	= username( $data['username'] );
 	$display	= username( $data['display'] );
 	
 	// Template basics
-	$root		= getRoot( $conf );
+	$root		= getRoot();
 	$tpl		= [
-		'{page_title}'=> $conf['title'],
+		'{page_title}'=> config( 'title', 'notags' ),
 		'{root}'	=> $root,
 		'{username}'	=> $username,
 		'{display}'	=> $display,
-		'{theme}'	=> getTheme( $conf )
+		'{theme}'	=> getTheme()
 	];
 	
 	// TODO: User status editor
@@ -3363,9 +3437,8 @@ function viewProfile( array $route ) {
  */
 function doProfile( array $route ) {
 	$user		= authUser();
-	$conf		= settings();
 	if ( empty( $user ) ) {
-		sendLogin( $conf, 'profile' );
+		sendLogin( 'profile' );
 	}
 	
 	// User id from route
@@ -3410,7 +3483,7 @@ function doProfile( array $route ) {
 	}
 	
 	saveUser( $form );
-	sendPage( $conf, '', 202 );
+	sendPage( '', 202 );
 }
 
 /**
@@ -3425,14 +3498,13 @@ function logout( array $route ) {
  *  Show login page
  */
 function viewLogin( array $route ) {
-	$conf		= settings();
-	$htpl		= getTemplate( $conf, 'login' );
-	$root		= getRoot( $conf );
+	$htpl		= getTemplate( 'login' );
+	$root		= getRoot();
 	
 	$tpl		= [
-		'{page_title}'=> $conf['title'],
+		'{page_title}'=> config( 'title', 'notags' ),
 		'{root}'	=> $root,
-		'{theme}'	=> getTheme( $conf ),
+		'{theme}'	=> getTheme(),
 		'{csrf}'	=> getCsrf( 'login' ),
 		'{action}'	=> $root . 'login'
 	];
@@ -3482,10 +3554,6 @@ function doLogin( array $route ) {
 		send( 401, MSG_LOGINERROR );
 	}
 	
-	// Load configuration
-	$conf		= settings();
-	$root		= getRoot( $conf );
-	
 	// Password matches?
 	if ( verifyPassword( 
 		$form['password'], $user['password'] 
@@ -3496,28 +3564,27 @@ function doLogin( array $route ) {
 		}
 		
 		// Send to previously requested path, if any
-		sendPage( $conf, $form['redir'] ?? '', 202 );
+		sendPage( $form['redir'] ?? '', 202 );
 	}
 	
 	// Password didn't match resend login path with redirect
-	sendLogin( $conf, $form['redir'] ?? '' );
+	sendLogin( $form['redir'] ?? '' );
 }
 
 /**
  *  Send registration page
  */
 function viewRegister( array $route ) {
-	$conf		= settings();
-	$reg		= $conf['allow_register'] ?? false;
-	if ( !$reg ) {
+	// Check if registration is allowed
+	if ( !config( 'allow_register', 'bool', false ) ) {
 		send( 403, MSG_REGCLOSED );
 	}
-	$root		= getRoot( $conf );
-	$htpl		= getTemplate( $conf, 'register' );
+	$root		= getRoot();
+	$htpl		= getTemplate( 'register' );
 	$tpl		= [
-		'{page_title}'=> $conf['title'],
+		'{page_title}'=> config( 'title', 'notags' ),
 		'{root}'	=> $root,
-		'{theme}'	=> getTheme( $conf ),
+		'{theme}'	=> getTheme(),
 		'{csrf}'	=> getCsrf( 'register' ),
 		'{action}'	=> $root. 'register'
 	];
@@ -3530,8 +3597,8 @@ function viewRegister( array $route ) {
  *  TODO: Handle registration
  */
 function doRegister( array $route ) {
-	$reg		= $config['allow_register'] ?? false;
-	if ( !$reg ) {
+	// Check if registration is allowed
+	if ( !config( 'allow_register', 'bool', false ) ) {
 		send( 403, MSG_REGCLOSED );
 	}
 	
@@ -3580,7 +3647,7 @@ function doRegister( array $route ) {
 	] );
 	
 	// Once registration is complete, send to login with redirect
-	sendLogin( $conf, 'profile/' . $data['id'] . '/' . $data['username'] );
+	sendLogin( 'profile/' . $data['id'] . '/' . $data['username'] );
 }
 
 /**
@@ -3588,18 +3655,17 @@ function doRegister( array $route ) {
  */
 function viewChPass( array $route ) {
 	$user		= authUser();
-	$conf		= settings();
 	if ( empty( $user ) ) {
-		sendLogin( $conf, 'changepass' );
+		sendLogin( 'changepass' );
 	}
 	
-	$root		= getRoot( $conf );
-	$htpl		= getTemplate( $conf, 'login' );
+	$root		= getRoot();
+	$htpl		= getTemplate( 'login' );
 	$conf		= settings();
 	$tpl		= [
-		'{page_title}'=> $conf['title'],
+		'{page_title}'=> config( 'title', 'notags' ),
 		'{root}'	=> $root,
-		'{theme}'	=> getTheme( $conf ),
+		'{theme}'	=> getTheme(),
 		'{csrf}'	=> getCsrf( 'chpassword' ),
 		'{action}'	=> $root . 'changepass'
 	];
@@ -3613,9 +3679,8 @@ function viewChPass( array $route ) {
  */
 function doChPass( array $route ) {
 	$user		= authUser();
-	$conf		= settings();
 	if ( empty( $user ) ) {
-		sendLogin( $conf, 'changepass' );
+		sendLogin( 'changepass' );
 	}
 	
 	$form		= \filter_input_array( \INPUT_POST, [
@@ -3657,7 +3722,7 @@ function doChPass( array $route ) {
 	
 	// Reset authorization
 	setAuth( $user );
-	sendPage( $conf, '' );
+	sendPage( '' );
 }
 
 /**
@@ -3665,14 +3730,13 @@ function doChPass( array $route ) {
  */
 function viewConfig( array $route ) {
 	$user		= authUser();
-	$conf		= settings();
 	if ( empty( $user ) ) {
-		sendLogin( $conf, 'manage/settings' );
+		sendLogin( 'manage/settings' );
 	}
 	
 	// Load post template and get Root
-	$htpl		= getTemplate( $conf, 'settings', false, true );
-	$root		= getRoot( $conf );
+	$htpl		= getTemplate( 'settings', false, true );
+	$root		= getRoot();
 	
 	$tpl		= [
 		'{csrf}'	=> getCsrf( 'settings' ),
@@ -3681,15 +3745,22 @@ function viewConfig( array $route ) {
 		'{post_list}'	=> $root,
 		'{help}'	=> $root . 'manage/help.html',
 		'{settings}'	=> $root . 'manage/settings',
-		'{title}'	=> $conf['title'],
-		'{tagline}'	=> $conf['tagline'],
-		'{timezone}'	=> timezoneSelect( $conf['timezone'] ),
-		'{copyright}'	=> $conf['copyright'],
-		'{csp}'	=> $conf['csp'],
-		'{show_full}'	=> checkedCheckbox( $conf['show_full'] ),
-		'{force_tls}'	=> checkedCheckbox( $conf['show_full'] ),
+		'{title}'	=> config( 'title', 'notags' ),
+		'{tagline}'	=> config( 'tagline', 'notags' ),
+		'{timezone}'	=> 
+		timezoneSelect( config( 'timezone' ) ),
+		
+		'{copyright}'	=> config( 'copyright', 'html' ),
+		'{csp}'	=> config( 'csp', 'array', encode( DEFAULT_JCSP ) ),
+		
+		'{show_full}'	=> 
+		checkedCheckbox( config( 'show_full', 'bool', true ) ),
+		
+		'{force_tls}'	=> 
+		checkedCheckbox( config( 'force_tls', 'bool', false ) ),
+		
 		'{allow_register}'	=> 
-			checkedCheckbox( $conf['allow_register'] )
+		checkedCheckbox( config( 'allow_register', 'bool', false ) )
 	];
 	
 	$htpl	= parseLang( $htpl );
@@ -3701,9 +3772,8 @@ function viewConfig( array $route ) {
  */
 function doConfig( array $route ) {
 	$user		= authUser();
-	$conf		= settings();
 	if ( empty( $user ) ) {
-		sendLogin( $conf, 'manage/settings' );
+		sendLogin( 'manage/settings' );
 	}
 	
 	$form		= \filter_input_array( \INPUT_POST, [
@@ -3854,16 +3924,16 @@ function doConfig( array $route ) {
  */
 function notfound() {
 	// Load post template and get Root
-	$htpl		= getTemplate( $conf, 'notfound' );
-	$root		= getRoot( $conf );
+	$htpl		= getTemplate( 'notfound' );
+	$root		= getRoot();
 	
 	$tpl			= [
-		'{page_title}'=> $conf['title'],
-		'{tagline}'	=> $conf['tagline'],
+		'{page_title}'=> config( 'title', 'notags' ),
+		'{tagline}'	=> config( 'tagline', 'notags' ),
 		'{root}'	=> $root,
 		'{manage}'	=> $root . 'manage',
-		'{theme}'	=> getTheme( $conf ) . '/',
-		'{copyright}'	=> $conf['copyright']
+		'{theme}'	=> getTheme() . '/',
+		'{copyright}'	=> config( 'copyright', 'html' )
 	];
 	
 	$htpl	= parseLang( $htpl );
