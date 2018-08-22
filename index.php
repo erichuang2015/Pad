@@ -222,7 +222,139 @@ function signature( bool $raw = false ) {
 	return $raw ? $rawsig : $sig
 }
 
+function sessionThrottle() : bool {
+	$check 	= 0;
+	$now		= time()
+	
+	// Check session
+	sessionCheck();
+	
+	// First visit?
+	$last	= $_SESSION['last'] ?? [];
+	if ( empty( $last ) ) {
+		$_SESSION['last'] = [ $now, 0 ];
+		return;
+	}
+	
+	// Session corrupted? Reset and send Not Modified
+	if ( !\is_array( $last ) || count( $last ) !== 2 ) {
+		$_SESSION['last'] = [ $now, 0 ];
+		send( 304 );
+	}
+	
+	// Timestamp segments
+	$t = ( int ) $last[0] ?? time();
+	$q = ( int ) $last[1] ?? 0;
+	
+	// Rapid query limit exceeded?
+	if ( $q >= 5 ) {
+		// Delay has timed out? Reset
+		if ( ( $t + SESSION_EXP ) > $now ) {
+			$_SESSION['last'] = [ $now, 0 ];
+		
+		// Still within limit
+		// Set time, but keep query limit
+		} else {
+			$_SESSION['last'] = [ $now, $q ];
+			$check = 3;
+		}
+	} else {
+		// Last request less than 2 secs ago?
+		// Probably abuse
+		if ( \abs( $now - $t ) < 2 ) {
+			$_SESSION['last'] = [ $now, $q++ ];
+			$check = 2;
+			
+		// Less than 5 secs ago?
+		// Probably just impatient
+		} elseif ( \abs( $now - $t ) < 5 ) {
+			$_SESSION['last'] = [ $now, $q ];
+			$check = 1;
+		
+		// No limits exceeded. Reset
+		} else {
+			$_SESSION['last'] = [ time(), 0 ];
+		}
+	}
+	
+	// Increase sleep delay
+	switch( $check ) {
+		case 3:
+			sleep( 20 );
+			send( 304 );
+			
+		case 2:
+			sleep( 10 );
+			send( 304 );
+			
+		case 1:
+			sleep( 5 );
+			send( 304 );
+	}
+}
 
+/**
+ *  Request filter, throttling and cache check
+ *  
+ *  @param string	$verb		Request method
+ *  @param string	$path		Current request URI
+ */
+function request( string &$verb, string &$path ) {
+	// Process request method for valid types
+	$verb		= strtolower( $verb );
+	
+	// Session throttle
+	sessionThrottle();
+	
+	// Request path
+	if ( \strpos( $path, '..' ) ) {
+		send( 400 );
+	}
+	
+	// Possible XSS injection
+	if ( 
+		\preg_match( RX_XSS2, $path ) || 
+		\preg_match( RX_XSS3, $path ) || 
+		\preg_match( RX_XSS4, $path ) 
+	) {
+		send( 403 );
+		send( 403 );
+	}
+	
+	// Request size hard limit
+	if ( \mb_strlen( $path, '8bit' ) > 255 ) {
+		send( 414 );
+	}
+	
+	// File upload detected
+	if ( !empty( $_FILES ) ) {
+		send( 413 );
+	}
+	
+	// Check request method
+	switch( $verb ) {
+		// Check cache
+		case 'get':
+			$data = getCache( fullURI() );
+			if ( !empty( $data ) ) {
+				send( 200, $data );
+			}
+			return;
+		
+		// Will need processing, continue
+		case 'post':
+			return;
+		
+		// No content sent
+		case 'head':
+			send( 200 );
+		
+		// Nothing else implemented
+		default:
+			send( 405 );
+	}
+	
+}
 
 
 /**
@@ -2853,34 +2985,12 @@ function filterParams( $params ) {
 /**
  *  Route the current path according to the specified callback map
  */
-function route( array $routes, array $markers ) {
-	// Process request method for valid types
-	$verb		= strtolower( $_SERVER['REQUEST_METHOD'] );
-	switch( $verb ) {
-		// Check cache
-		case 'get':
-			$data = getCache( fullURI() );
-			if ( !empty( $data ) ) {
-				send( 200, $data );
-			}
-			break;
-		
-		// Will need processing, continue
-		case 'post':
-			break;
-		
-		// No content sent
-		case 'head':
-			send( 200 );
-		
-		// Nothing else implemented
-		default:
-			send( 501 );
-	}
-	
-	// Request path
-	$path		= $_SERVER['REQUEST_URI'];
-	
+function route( 
+	string		$verb,
+	string		$path,
+	array		$routes,
+	array		$markers
+) {
 	$k		= array_keys( $markers );
 	$v		= array_values( $markers );
 	$found		= false;
@@ -3948,9 +4058,16 @@ function begin() {
 	
 	// Handle shutdown
 	\register_shutdown_function( 'shutdown' );
-
+	
+	// Base request parameters
+	$verb	= $_SERVER['REQUEST_METHOD'];
+	$path	= $_SERVER['REQUEST_URI'];
+	
+	// Filter request
+	request( $verb, $path );
+	
 	// Begin routing
-	route( $conf['routes'], $conf['markers'] );
+	route( $verb, $path, $conf['routes'], $conf['markers'] );
 }
 
 
