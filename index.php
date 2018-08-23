@@ -222,24 +222,21 @@ function signature( bool $raw = false ) {
 	return $raw ? $rawsig : $sig
 }
 
-function sessionThrottle() : bool {
-	$check 	= 0;
+/**
+ *  Last visit session data and timeouts
+ */
+function lastVisit() : int {
 	$now		= time();
-	
-	// Check session
-	sessionCheck();
-	
-	// Sender should not be served for the duration of this session
-	if ( isset( $_SESSION['kill'] ) ) {
-		send( 403 );
-	}
 	
 	// First visit?
 	$last	= $_SESSION['last'] ?? [];
 	if ( empty( $last ) ) {
 		$_SESSION['last'] = [ $now, 0 ];
-		return;
+		return 0;
 	}
+	
+	// Return state
+	$check 	= 0;
 	
 	// Session corrupted? Reset and send Not Modified
 	if ( !\is_array( $last ) || count( $last ) !== 2 ) {
@@ -282,26 +279,56 @@ function sessionThrottle() : bool {
 		}
 	}
 	
+	return $check;
+}
+
+/**
+ *  Close the session and any open connections
+ */
+function cleanup() {
+	if ( session_write_close() ) {
+		getDb( true );
+	}
+}
+
+/**
+ *  Limit requests per session
+ */
+function sessionThrottle() {
+	// Check session
+	sessionCheck();
+	
+	// Sender should not be served for the duration of this session
+	if ( isset( $_SESSION['kill'] ) ) {
+		cleanup();
+		send( 403 );
+	}
+	
+	$check		= lastVisit();
+	
 	// Increase sleep delay
 	switch( $check ) {
 		// Send Too Many Requests
 		case 3:
+			cleanup();
 			sleep( 20 );
 			send( 429 );
 		
-		// Send not modified for the rest
+		// Send Not Modified for the rest
 		case 2:
+			cleanup();
 			sleep( 10 );
 			send( 304 );
 			
 		case 1:
+			cleanup();
 			sleep( 5 );
 			send( 304 );
 	}
 }
 
 /**
- *  Request filter, throttling and cache check
+ *  Request filter and cache check
  *  
  *  @param string	$verb		Request method
  *  @param string	$path		Current request URI
@@ -310,11 +337,9 @@ function request( string &$verb, string &$path ) {
 	// Process request method for valid types
 	$verb		= strtolower( $verb );
 	
-	// Session throttle
-	sessionThrottle();
-	
 	// Request path (simpler filter before proper XSS)
 	if ( \strpos( $path, '..' ) || \strpos( $path, '<' ) ) {
+		cleanup();
 		send( 400 );
 	}
 	
@@ -326,11 +351,13 @@ function request( string &$verb, string &$path ) {
 	) {
 		// Set dangerous request flag to this session
 		$_SESSION['kill'] = time();
+		cleanup();
 		send( 403 );
 	}
 	
-	// Request size hard limit
+	// Request path hard limit
 	if ( \mb_strlen( $path, '8bit' ) > 255 ) {
+		cleanup();
 		send( 414 );
 	}
 	
@@ -340,6 +367,7 @@ function request( string &$verb, string &$path ) {
 		case 'get':
 			$data = getCache( fullURI() );
 			if ( !empty( $data ) ) {
+				cleanup();
 				send( 200, $data );
 			}
 			return;
@@ -350,10 +378,12 @@ function request( string &$verb, string &$path ) {
 		
 		// No content sent
 		case 'head':
+			cleanup();
 			send( 200 );
 		
 		// Nothing else implemented
 		default:
+			cleanup();
 			send( 405 );
 	}
 	
@@ -712,6 +742,9 @@ function shutdown() {
 	 *  TODO: Make garbage collection fire less frequently
 	 */
 	// cacheGC();
+	
+	// Cleanup session and close database connection
+	cleanup();
 }
 
 /**
@@ -886,12 +919,22 @@ function cacheGC( string $root = \CACHE ) {
 /**
  *  Get database connection
  */
-function getDb() {
+function getDb( bool $close = false ) {
 	static $db;
 	
-	if ( isset( $db ) ) {
-		return $db;
+	if ( $close ) {
+		if ( isset( $db ) )
+			$db	= null;
+			unset( $db );
+		}
+		return;
+		
+	} else {
+		if ( isset( $db ) ) {
+			return $db;
+		}
 	}
+	
 	
 	$opts	= [
 		\PDO::ATTR_TIMEOUT		=> \DATA_TIMEOUT,
@@ -2282,7 +2325,6 @@ function sessionCanary( string $visit = '' ) {
  *  Check session staleness
  */
 function sessionCheck( bool $reset = false ) {
-	setSessionHandler();
 	session( $reset );
 	
 	if ( empty( $_SESSION['canary'] ) ) {
@@ -4061,10 +4103,11 @@ function notfound() {
  *  Pad start
  */
 function begin() {
-	$conf	= settings();
+	// Apply session handler functions
+	setSessionHandler();
 	
-	// Handle shutdown
-	\register_shutdown_function( 'shutdown' );
+	// Session request throttle
+	sessionThrottle();
 	
 	// Base request parameters
 	$verb	= $_SERVER['REQUEST_METHOD'];
@@ -4072,6 +4115,11 @@ function begin() {
 	
 	// Filter request
 	request( $verb, $path );
+	
+	// Handle shutdown
+	\register_shutdown_function( 'shutdown' );
+	
+	$conf	= settings();
 	
 	// Begin routing
 	route( $verb, $path, $conf['routes'], $conf['markers'] );
