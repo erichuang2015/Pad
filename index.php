@@ -11,7 +11,7 @@ define( 'MSG_REGCLOSED',	'Registrations are closed' );
 define( 'MSG_PASSMATCH', 	'Passwords must match' );
 define( 'MSG_PASSERROR',	'Password error' );
 define( 'MSG_LOGINERROR',	'Login error' );
-define( 'MSG_FORMEXP',	'Form expired' );
+define( 'MSG_FORMEXP',		'Form expired' );
 define( 'MSG_DENIED',		'Permission to access or modify this resource is denied' );
 
 /**
@@ -48,20 +48,20 @@ define( 'YEAR_END',		2000 );
 define( 'SIG_HASH',		'tiger160,4' );
 
 // Session defaults
-define( 'SESSION_EXP',	300 );
+define( 'SESSION_EXP',		300 );
 define( 'SESSION_BYTES',	12 );
 define( 'SESSION_NAME',	'pad' );
 
 // Cookie defaults
-define( 'COOKIE_EXP', 	86400 );
-define( 'COOKIE_PATH',	'/' );
+define( 'COOKIE_EXP', 		86400 );
+define( 'COOKIE_PATH',		'/' );
 
 
 /**
  *  Default content security policy is to restrict everything to 
  *  the current host
  */
-define( 'DEFAULT_CSP',	"default-src 'self'; frame-ancestors 'none'" );
+define( 'DEFAULT_CSP',		"default-src 'self'; frame-ancestors 'none'" );
 define( 'DEFAULT_JCSP',	<<<JSON
 {
 	"default-src"		: "'self'",
@@ -69,8 +69,6 @@ define( 'DEFAULT_JCSP',	<<<JSON
 }
 JSON
 );
-
-
 
 
 /**
@@ -122,7 +120,7 @@ public function httpHeaders() {
 	
 	return $headers;
 }
-	
+
 /**
  *  Get IP address
  */
@@ -148,7 +146,7 @@ private function getIP() : string {
 	
 	return $ip;
 }
-	
+
 /**
  *  Guess if current request is secure
  */
@@ -165,7 +163,7 @@ function isSecure() : bool {
 	
 	return false;
 }
-	
+
 /**
  *  Create current visitor's browser signature by sent headers
  */
@@ -205,18 +203,18 @@ function signature( bool $raw = false ) {
 	];
 		
 	$headers	= httpHeaders();
-	$search	= 
+	$search		= 
 	\array_intersect_key( 
 		\array_keys( $headers ), 
 		\array_reverse( $this->skip_headers ) 
 	);
-		
+	
 	$match		= '';
 	foreach ( $headers as $k => $v ) {
 		$match	.= $v[0];
 	}
 	
-	$rawsig	= $match;
+	$rawsig		= $match;
 	$sig		= \hash( SIG_HASH, $match ); 
 		
 	return $raw ? $rawsig : $sig
@@ -226,7 +224,7 @@ function signature( bool $raw = false ) {
  *  Last visit session data and timeouts
  */
 function lastVisit() : int {
-	$now		= time();
+	$now	= time();
 	
 	// First visit?
 	$last	= $_SESSION['last'] ?? [];
@@ -245,8 +243,8 @@ function lastVisit() : int {
 	}
 	
 	// Timestamp segments
-	$t = ( int ) $last[0] ?? time();
-	$q = ( int ) $last[1] ?? 0;
+	$t	= ( int ) $last[0] ?? time();
+	$q	= ( int ) $last[1] ?? 0;
 	
 	// Rapid query limit exceeded?
 	if ( $q >= 5 ) {
@@ -313,7 +311,7 @@ function sessionThrottle() {
 			cleanup();
 			sleep( 20 );
 			send( 429 );
-		
+			
 		// Send Not Modified for the rest
 		case 2:
 			cleanup();
@@ -376,7 +374,7 @@ function request( string &$verb, string &$path ) {
 		case 'post':
 			return;
 		
-		// No content sent
+		// Send no content
 		case 'head':
 			cleanup();
 			send( 200 );
@@ -386,9 +384,7 @@ function request( string &$verb, string &$path ) {
 			cleanup();
 			send( 405 );
 	}
-	
 }
-
 
 /**
  *  Helpers
@@ -406,7 +402,7 @@ function missing( $func ) {
 		if ( !empty( $exts ) ) {
 			$blocked	= \explode( ',', \strtolower( $exts ) );
 			$blocked	= \array_map( 'trim', $blocked );
-			$search	= \strtolower( $func );
+			$search		= \strtolower( $func );
 			
 			return (
 				false	== \function_exists( $func ) && 
@@ -504,7 +500,7 @@ function prefixReplace(
 	// Find placeholders with given prefix
 	\preg_match_all( 
 		'/\{' . $prefix . '(\:[\:a-z]{1,100})\}/g', 
-		$content, $matches 
+		$content, $m 
 	);
 	
 	// Convert data to :group:label... format
@@ -513,7 +509,7 @@ function prefixReplace(
 	// Replacements list
 	$rpl	= [];
 	
-	$c	= count( $matches );
+	$c	= count( $m );
 	
 	// Set {prefix:group:label... } replacements or empty string
 	for( $i = 0; $i < $c; $i++ ) {
@@ -1203,7 +1199,7 @@ function newPost( array $data ) : array {
 		':parent'	=> $data['parent'] ?? 0,
 		':user_id'	=> $data['user_id'],
 		':summary'	=> $data['summary'],
-		':body'	=> $data['body'],
+		':body'		=> $data['body'],
 		':published'	=> $data['published'],
 		':status'	=> $data['status']
 	];
@@ -1226,7 +1222,7 @@ function editPost( array $data ) {
 	$params	= [
 		':title'	=> $data['title'],
 		':summary'	=> $data['summary'],
-		':body'	=> $data['body'],
+		':body'		=> $data['body'],
 		':published'	=> $data['published'],
 		':status'	=> $data['status']
 	];
@@ -1779,10 +1775,10 @@ function tidyup( string $text ) : string {
 	$opt = [
 		'bare'					=> 1,
 		'hide-comments' 			=> 1,
-		'drop-proprietary-attributes'	=> 1,
+		'drop-proprietary-attributes'		=> 1,
 		'fix-uri'				=> 1,
 		'join-styles'				=> 1,
-		'output-xhtml'			=> 1,
+		'output-xhtml'				=> 1,
 		'merge-spans'				=> 1,
 		'show-body-only'			=> 0,
 		'wrap'					=> 0
@@ -2196,7 +2192,7 @@ function sessionWrite( $id, $data ) {
 	
 	if ( $stm->execute( [ 
 		':id'		=> $id, 
-		':data'	=> $data 
+		':data'		=> $data 
 	] ) ) {
 		return true;
 	}
@@ -2211,8 +2207,8 @@ function formatAuthUser( $user ) {
 	return [
 		'id'		=> ( int ) ( $user['id'] ?? 0 ),
 		'status'	=> ( int ) ( $user['status'] ?? 0 ),
-		'name'		= $user['name'] ?? '',
-		'auth'		= $user['auth'] ?? ''
+		'name'		=> $user['name'] ?? '',
+		'auth'		=> $user['auth'] ?? ''
 	];
 }
 	
@@ -2315,7 +2311,7 @@ function sessionCanary( string $visit = '' ) {
 	$_SESSION['canary'] = 
 	[
 		'exp'		=> time() + SESSION_EXP,
-		'visit'	=> 
+		'visit'		=> 
 		empty( $visit ) ? 
 			\bin2hex( \random_bytes( 12 ) ) : $visit
 	];
@@ -2815,7 +2811,7 @@ function getTemplate(
  *  @return string
  */
 function timezoneSelect( string $selected ) : string {
-	$zones	= 
+	$zones		= 
 	\DateTimeZone::listIdentifiers( \DateTimeZone::ALL );
 	
 	$offsets	= [];
@@ -2829,11 +2825,11 @@ function timezoneSelect( string $selected ) : string {
 	'<select name="timezone" id="timezone" required>';
 	
 	foreach ( $offsets as $tz => $offset ) {
-		$prefix	= ( $offset < 0 ) ? '-' : '+';
-		$format	= \gmdate( 'H:i', \abs( $offset ) );
+		$prefix		= ( $offset < 0 ) ? '-' : '+';
+		$format		= \gmdate( 'H:i', \abs( $offset ) );
 		$nice		= "UTC${prefix}${format}";
 		$out		.=
-		$tz == $selected ? 
+		$tz		== $selected ? 
 		"<option value=\"{$tz}\" selected>${nice} $tz</option>" :
 		"<option value=\"{$tz}\">${nice} $tz</option>";
 	}
@@ -2940,7 +2936,7 @@ function navPage( $page, $count ) {
 	if ( $count >= $lm ) {
 		$out .= 
 		\strtr( NAV_TPL, [
-			'{url}'	=> $root . 'page' . $pp,
+			'{url}'		=> $root . 'page' . $pp,
 			'{page}'	=> NEXT_PAGE
 		] );
 	}
@@ -2959,7 +2955,7 @@ function siblingPages( array $siblings ) {
 	$out	= '';
 	foreach ( $siblings as $s ) {
 		$out .= \strtr( NAV_TPL [
-			'{url}'	=> $root . $s['permalink'],
+			'{url}'		=> $root . $s['permalink'],
 			'{page}'	=> $s['title']
 		] );
 	}
@@ -2984,7 +2980,7 @@ function indexView(
 	\strtr( $theme, [
 		'{theme}'		=> getTheme( $feed, $admin ),
 		'{date_gen}'		=> rfcDate(),
-		'{page_title}'	=> config( 'title', 'notags' ),
+		'{page_title}'		=> config( 'title', 'notags' ),
 		'{tagline}'		=> config( 'tagline', 'notags' ),
 		'{home}'		=> $root,
 		'{manage}'		=> $root . 'manage',
