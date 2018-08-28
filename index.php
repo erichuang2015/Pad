@@ -273,7 +273,7 @@ function lastVisit() : int {
 		
 		// No limits exceeded. Reset
 		} else {
-			$_SESSION['last'] = [ time(), 0 ];
+			$_SESSION['last'] = [ $now, 0 ];
 		}
 	}
 	
@@ -697,7 +697,8 @@ function config(
 			break;
 		
 		case 'notags':
-			$out[$name]	= \strip_tags( 
+			$out[$name]	= 
+			\strip_tags( 
 				\is_string( $tmp ) ? $tmp : ( string ) $tmp
 			);
 			break;
@@ -797,8 +798,8 @@ function writeDir( string $dir ) {
  *  @param string	$path		Cache data file
  *  @return bool
  */
-function cacheHit( string $path ) : bool {
-	if ( empty( $this->path ) ) {
+function cacheHit( string $path = '' ) : bool {
+	if ( empty( $path ) ) {
 		return false;
 	}
 	
@@ -858,7 +859,7 @@ function getDirectory( $root ) {
 	return
 	new \RecursiveIteratorIterator(
 		new \RecursiveDirectoryIterator( 
-			$root, \FilesystemIterator::SKIP_DOTS |
+			$root,	\FilesystemIterator::SKIP_DOTS |
 				\FilesystemIterator::FOLLOW_SYMLINKS
 		), 
 		\RecursiveIteratorIterator::CHILD_FIRST
@@ -1037,8 +1038,11 @@ function findPostByIdSlug( int $id, string $slug ) : array {
 	"SELECT * FROM page_view 
 		WHERE id = :id AND slug = :slug LIMIT 1;";
 	
-	return 
-	getSingle( $sql, [ ':id' => $id, ':slug' => $slug ] );
+	$data	= getResults( $sql, [ ':id' => $id, ':slug' => $slug ] );
+	if ( empty( $data ) ) {
+		return $data[0];
+	}
+	return [];
 }
 
 /**
@@ -1048,8 +1052,12 @@ function findPostByPermalink( string $link ) : array {
 	$sql	=
 	"SELECT * FROM page_view 
 		WHERE permalink = :link LIMIT 1;";
-		
-	return getSingle( $sql, [ ':link' => $link ] );
+	
+	$data	= getResults( $sql, [ ':link' => $link ] );
+	if ( empty( $data ) ) {
+		return $data[0];
+	}
+	return [];
 }
 
 /**
@@ -1096,16 +1104,21 @@ function findPostsByIndex(
 function findPostsArchive( array $data ) : array {
 	$dates		= enforceDates( $data );
 	$page		= ( int ) ( $data['page'] ?? 1 );
+	
+	// Year added by default
 	$search	= [ $dates[0] ];
 	
+	// Add month if set in request
 	if ( !empty( $route['month'] ) ) {
 		$search[] = $raw[1];
 	}
 	
+	// Add day if set in request
 	if ( !empty( $route['day'] ) ) {
 		$search[] = $raw[2];
 	}
 	
+	// Set search based on year/month/day combination
 	switch ( count( $search ) ) {
 		case 3:
 			$label	= 'archive_ymd';
@@ -1124,7 +1137,7 @@ function findPostsArchive( array $data ) : array {
 	"SELECT * FROM index_view WHERE $label = :search 
 		LIMIT :limit OFFSET :offset;";
 	
-	$param	= [
+	$params	= [
 		':search'	=> \implode( '/', $search ),
 		':limit'	=> $limit,
 		':offset'	=> $limit * ( $page - 1 )
@@ -1138,17 +1151,23 @@ function findPostsArchive( array $data ) : array {
  */
 function findPostBySearch( int $page, string $search ) : array {
 	$limit		= config( 'page_limit', 'int', 15 );
-	$ssql	= 
+	$ssql		= 
 	"SELECT docid FROM post_search WHERE body 
 		MATCH :search LIMIT :limit OFFSET :offset";
 	
-	// Get document ids ( post ids ) from search results
-	$ids	= getResults( $sql, [ ':search' => $search ];
+	$limit	= config( 'page_limit', 'int', 15 );
+	$params		= [
+		':search' => $search,
+		':limit'	=> $limit,
+		':offset'	=> $limit * ( $page - 1 )
+	]
+	// Get document ids ( post ids ) from search results first
+	$ids	= getResults( $sql, $params );
 	if ( empty( $ids ) ) {
 		return [];
 	}
 	
-	// Generate parameters
+	// Generate parameters from returned IDs
 	$param = [];
 	foreach ( $ids as $id ) {
 		$param[':id_' . $id] = $id;
@@ -1179,10 +1198,9 @@ function setTags( int $id, array $tags ) {
 		$stm->execute( [
 			':name'	=> $v,
 			':slug'	=> slugify( $v ),
-			':id'		=> $id
+			':id'	=> $id
 		] );
 	}
-	
 }
 
 /**
@@ -1260,14 +1278,17 @@ function findCookie( string $lookup ) : array {
 	$db	= getDb();
 	$stm	= $db->prepare( $sql );
 	
+	// First find lookup
 	if ( $stm->execute( [ ':lookup' => $lookup ] ) ) {
 		$results = $stm->fetchAll();
 	}
 	
+	// No logins found
 	if ( empty( $results ) ) {
 		return [];
 	}
 	
+	// One login found
 	$user	= $results[0];
 	
 	// Check for cookie expiration
@@ -1338,6 +1359,8 @@ function findUserByUsername( string $username ) : array {
  *  Save user details by creating a new record or updating existing one
  */
 function saveUser( array $data ) : array {
+	
+	// Existing user?
 	if ( $data['id'] > 0 ) {
 		$sql	= 
 		"UPDATE users SET bio = :bio, display = :display, 
@@ -1354,10 +1377,12 @@ function saveUser( array $data ) : array {
 		return $data;
 	} 
 	
+	// New user
 	$sql	= 
 	"INSERT INTO users ( username, password, status ) 
 		VALUES( :username, :password, :status )";
 	
+	// Apply newly created ID
 	$data['id'] = 
 	setInsert( $sql, [ 
 		':username'	=> $data['username'],
@@ -2173,7 +2198,8 @@ function sessionRead( $id ) {
 	$stm	= $db->prepare( $sql );
 	
 	if ( $stm->execute( [ ':id' => $id ] ) ) {
-		return $stm->fetchColumn();
+		$data = $stm->fetchColumn();
+		return empty( $data ) ? '' : $data;
 	}
 	
 	return '';
@@ -2651,7 +2677,7 @@ function fullURI() {
  */
 function send(
 	int		$code		= 200,
-	string 	$content	= '',
+	string		$content	= '',
 	bool		$cache		= false
 ) {
 	$proto	= $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1';
@@ -2847,7 +2873,7 @@ function getRoot() {
 	if ( isset( $root ) ) {
 		return $root;
 	}
-	$root = 
+	$root		= 
 	\rtrim( config( 'webroot' ), '/' ) . '/';
 	
 	return $root;
@@ -2861,7 +2887,11 @@ function getRoot() {
  *  @param bool		$admin		Set true if this is an admin page
  *  @return string
  */
-function formatPosts( $results, $feed, $admin ) {
+function formatPosts(
+	array		$results,
+	bool		$feed,
+	bool		$admin
+) {
 	$htpl			= 
 	getTemplate( 'postfrag', $feed, $admin );
 	
@@ -2886,12 +2916,18 @@ function formatPosts( $results, $feed, $admin ) {
 /**
  *  Format individual post
  *  
- *  @param array	$ptpl		Post template
+ *  @param bool		$full		Display full post body
+ *  @param string	$ptpl		Post template
  *  @param string	$atpl		Author template fragment
  *  @param array	$post		Post row from database
  *  @return string
  */
-function formatPost( bool $full, $htpl, $atpl, $post ) {
+function formatPost(
+	bool		$full,
+	string		$htpl,
+	string		$atpl,
+	array		$post
+) {
 	$root			= getRoot();
 	// Format author details
 	$post['author']	= 
@@ -2915,7 +2951,7 @@ function formatPost( bool $full, $htpl, $atpl, $post ) {
  *  @param int		$count		Number of records in this index
  *  @return string
  */
-function navPage( $page, $count ) {
+function navPage( int $page, int $count ) {
 	$pm	= $page - 1;
 	$pp	= $page + 1;
 	$lm	= config( 'page_limit', 'int', 15 );
@@ -3008,7 +3044,7 @@ function indexView(
  *  @param string $route URL path in plain format
  *  @return string Route in regex format
  */
-function cleanRoute( $k, $v, $route ) {
+function cleanRoute( string $k, string $v, string $route ) {
 	$route	= str_replace( $k, $v, $route );
 	$regex	= str_replace( '.', '\.', $route );
 	return '@^/' . $route . '/?$@i';
@@ -3017,7 +3053,7 @@ function cleanRoute( $k, $v, $route ) {
 /**
  *  Filter path parameters to get rid of numeric indexes
  */
-function filterParams( $params ) {
+function filterParams( array $params ) {
 	\array_shift( $params );
 	return \array_filter( 
 		$params, 
@@ -3170,7 +3206,7 @@ function feed( array $route ) {
  *  Handle showing single page
  */
 function viewPage( array $route ) {
-	$data		= 
+	$data			= 
 	\filter_var_array(
 		$route, 
 		[
@@ -3204,11 +3240,11 @@ function viewPage( array $route ) {
 					'default'	=> 0
 				]
 			],
-			'slug'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+			'slug'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS
 		]
 	);
 	
-	$dates		= enforceDates( $data );
+	$dates			= enforceDates( $data );
 	if ( empty( $data['id'] ) ) {
 		$link		= 
 		'/' . \implode( '/', $dates ) . '/' . $data['slug'] ?? '';
@@ -3234,18 +3270,18 @@ function viewPage( array $route ) {
 	$htpl			= getTemplate( 'post' );
 	$root			= getRoot();
 	
-	$stitle		= config( 'title', 'notags' );
+	$stitle			= config( 'title', 'notags' );
 	$title			= $post['title'] . ' - ' . $stitle;
 	
 	$tpl			= [
-		'{site_title}'=> $title,
-		'{page_title}'=> $stitle
-		'{tagline}'	=> config( 'tagline', 'notags' )
+		'{site_title}'	=> $title,
+		'{page_title}'	=> $stitle,
+		'{tagline}'	=> config( 'tagline', 'notags' ),
 		'{root}'	=> $root,
 		'{page_url}'	=> $root,
 		'{manage}'	=> $root . 'manage',
 		'{theme}'	=> getTheme() . '/',
-		'{post_edit}' => $root . $post['post_edit']
+		'{post_edit}'	=> $root . $post['post_edit']
 	];
 	
 	// Has copyright feature
@@ -3316,7 +3352,7 @@ function search( array $route ) {
 		'search' => \FILTER_SANITIZE_FULL_SPECIAL_CHARS
 	] );
 	
-	$search	= $data['search'];
+	$search		= $data['search'];
 	$page		= ( int ) ( $data['page'] ?? 1 );
 	$results	= findPostBySearch( $page, $search );
 	
@@ -3409,7 +3445,7 @@ function editPage( array $route ) {
 	$data		= 
 	\filter_var_array( $route,  [
 			'id'		=> [
-			'filter'	=> \FILTER_VALIDATE_INT
+			'filter'	=> \FILTER_VALIDATE_INT,
 			'options'	=> [
 				'min_range'	=> 1, 
 				'default'	=> 0
@@ -3453,7 +3489,7 @@ function editPage( array $route ) {
 		'{slug}'	=> $post['slug'],
 		'{published}'	=> rfcDate( $post['published'] ),
 		'{body}'	=> pacify( $post['body'] ),
-		'{delete}'	= 
+		'{delete}'	=>
 		getTemplate( 'deletefrag', false, true )
 	];
 	
@@ -3555,7 +3591,7 @@ function viewProfile( array $route ) {
 	// Template basics
 	$root		= getRoot();
 	$tpl		= [
-		'{page_title}'=> config( 'title', 'notags' ),
+		'{page_title}'	=> config( 'title', 'notags' ),
 		'{root}'	=> $root,
 		'{username}'	=> $username,
 		'{display}'	=> $display,
@@ -3574,7 +3610,7 @@ function viewProfile( array $route ) {
 		tplHas( $htpl, 'action' )	&& 
 		tplHas( $htpl, 'csrf' )
 	) {
-		$tpl['{csrf}']	= getCsrf( 'profile' );
+		$tpl['{csrf}']		= getCsrf( 'profile' );
 		$tpl['{bio}']		= $data['bio'];
 		$tpl['{action}']	= 
 			$root . 'profile/' . $id . '/' . $username;
@@ -3657,7 +3693,7 @@ function viewLogin( array $route ) {
 	$root		= getRoot();
 	
 	$tpl		= [
-		'{page_title}'=> config( 'title', 'notags' ),
+		'{page_title}'	=> config( 'title', 'notags' ),
 		'{root}'	=> $root,
 		'{theme}'	=> getTheme(),
 		'{csrf}'	=> getCsrf( 'login' ),
@@ -3818,7 +3854,7 @@ function viewChPass( array $route ) {
 	$htpl		= getTemplate( 'login' );
 	$conf		= settings();
 	$tpl		= [
-		'{page_title}'=> config( 'title', 'notags' ),
+		'{page_title}'	=> config( 'title', 'notags' ),
 		'{root}'	=> $root,
 		'{theme}'	=> getTheme(),
 		'{csrf}'	=> getCsrf( 'chpassword' ),
@@ -3906,7 +3942,8 @@ function viewConfig( array $route ) {
 		timezoneSelect( config( 'timezone' ) ),
 		
 		'{copyright}'	=> config( 'copyright', 'html' ),
-		'{csp}'	=> config( 'csp', 'array', encode( DEFAULT_JCSP ) ),
+		'{csp}'		=> 
+		config( 'csp', 'array', encode( DEFAULT_JCSP ) ),
 		
 		'{show_full}'	=> 
 		checkedCheckbox( config( 'show_full', 'bool', true ) ),
@@ -3933,7 +3970,7 @@ function doConfig( array $route ) {
 	
 	$form		= \filter_input_array( \INPUT_POST, [
 		'csrf'		=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
-		'title'	=>  [
+		'title'		=>  [
 			'filter'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 			'options'	=> [
 				'default'	=> 'Untitled'
@@ -3951,13 +3988,13 @@ function doConfig( array $route ) {
 				'default'	=> '/'
 			]
 		],
-		'theme'	=> [
+		'theme'		=> [
 			'filter'	=> \FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 			'options'	=> [
 				'default'	=> 'goethe'
 			]
 		],
-		'posts'	=>
+		'posts'		=>
 		[
 			'filter'	=> \FILTER_VALIDATE_INT,
 			'options'	=> 
@@ -4063,7 +4100,7 @@ function doConfig( array $route ) {
 		'copyright'		=> $data['copyright'],
 		'timezone'		=> $data['timezone'],
 		'date_format'		=> $data['date_format'],
-		'theme'		=> $data['theme'],
+		'theme'			=> $data['theme'],
 		'page_limit'		=> $data['page_limit'],
 		'allow_register'	=> $allowreg,
 		'show_full'		=> $showfull,
@@ -4083,7 +4120,7 @@ function notfound() {
 	$root		= getRoot();
 	
 	$tpl			= [
-		'{page_title}'=> config( 'title', 'notags' ),
+		'{page_title}'	=> config( 'title', 'notags' ),
 		'{tagline}'	=> config( 'tagline', 'notags' ),
 		'{root}'	=> $root,
 		'{manage}'	=> $root . 'manage',
