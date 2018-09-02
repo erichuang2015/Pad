@@ -114,6 +114,7 @@ Regular themes should have the following files:
 * bioedit.html - A form for editing a an author's profile
 * register.html - New user registration form (recommended)
 * notfound.html - A page to display when the requested page is not found
+* error.html - A general error message display page
 
 Themes are basic HTML files with placeholders for where your content  
 will appear. CSS and JavaScript are included for some basic functions  
