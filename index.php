@@ -13,6 +13,7 @@ define( 'MSG_PASSERROR',	'Password error' );
 define( 'MSG_LOGINERROR',	'Login error' );
 define( 'MSG_FORMEXP',		'Form expired' );
 define( 'MSG_DENIED',		'Permission to access or modify this resource is denied' );
+define( 'MSG_TEMPLATE',	'Error loading template' );
 
 /**
  *  Pagination
@@ -1264,6 +1265,15 @@ function savePost( array $data ) {
 }
 
 
+/**
+ *  Delete post by given ID
+ */
+function deletePost( int $id ) : bool {
+	$sql	= 
+	"DELETE FROM posts WHERE id = :id LIMIT 1;";
+	
+	return setUpdate( $sql, [ ':id' => $id ] );
+}
 
 /**
  *  User data functions
@@ -1485,7 +1495,15 @@ function postDeleteCheck( $data ) {
 		// Delete requested, but nothing to delete?
 		if ( empty( $post ) ) {
 			notfound();
-		}	
+		}
+		
+		// Deletion successful
+		if ( deletePost( $data['id'] ) ) {
+			sendPage( '', 202 );
+		}
+		
+		// Deletion failed
+		sendPage( '', 304 );
 	}
 }
 
@@ -2823,9 +2841,16 @@ function getTemplate(
 	bool		$admin	= false
 ) {
 	if ( $admin ) {
-		return getAdminTheme() . $name . '.html';
+		$file = getAdminTheme();
+	} else {
+		$file = getTheme( $feed, $admin );
 	}
-	return getTheme( $feed, $admin ) . $name . '.html';
+	
+	$data = loadFile( $file . $name . '.html' );
+	if ( empty( $data ) ) {
+		die( MSG_TEMPLATE );
+	}
+	return $data;
 }
 
 /**
@@ -3488,9 +3513,7 @@ function editPage( array $route ) {
 		'{id}'		=> $post['id'],
 		'{slug}'	=> $post['slug'],
 		'{published}'	=> rfcDate( $post['published'] ),
-		'{body}'	=> pacify( $post['body'] ),
-		'{delete}'	=>
-		getTemplate( 'deletefrag', false, true )
+		'{body}'	=> pacify( $post['body'] )
 	];
 	
 	$htpl	= parseLang( $htpl );
