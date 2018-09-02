@@ -1,5 +1,11 @@
 <?php declare( strict_types = 1 );
 
+// Setup check
+if ( \file_exists( \dirname(__FILE__) . '/setup.php' ) ) {
+	die( 'Setup incomplete or setup.php needs to be deleted' );
+}
+
+
 /**
  *  Default site messages
  */
@@ -238,7 +244,7 @@ function lastVisit() : int {
 	$check 	= 0;
 	
 	// Session corrupted? Reset and send Not Modified
-	if ( !\is_array( $last ) || count( $last ) !== 2 ) {
+	if ( !\is_array( $last ) || \count( $last ) !== 2 ) {
 		$_SESSION['last'] = [ $now, 0 ];
 		send( 304 );
 	}
@@ -285,7 +291,7 @@ function lastVisit() : int {
  *  Close the session and any open connections
  */
 function cleanup() {
-	if ( session_write_close() ) {
+	if ( \session_write_close() ) {
 		getDb( true );
 	}
 }
@@ -334,7 +340,7 @@ function sessionThrottle() {
  */
 function request( string &$verb, string &$path ) {
 	// Process request method for valid types
-	$verb		= strtolower( $verb );
+	$verb		= \strtolower( $verb );
 	
 	// Request path (simpler filter before proper XSS)
 	if ( \strpos( $path, '..' ) || \strpos( $path, '<' ) ) {
@@ -407,7 +413,7 @@ function missing( $func ) {
 			
 			return (
 				false	== \function_exists( $func ) && 
-				true	== array_search( $search, $blocked ) 
+				true	== \array_search( $search, $blocked ) 
 			);
 		}
 	}
@@ -519,7 +525,7 @@ function prefixReplace(
 	// Replacements list
 	$rpl	= [];
 	
-	$c	= count( $m );
+	$c	= \count( $m );
 	
 	// Set {prefix:group:label... } replacements or empty string
 	for( $i = 0; $i < $c; $i++ ) {
@@ -885,7 +891,7 @@ function getDirectory( $root ) {
  *  
  *  @param string	$root	Cache path directory
  */
-function cacheGC( string $root = \CACHE ) {
+function cacheGC( string $root = CACHE ) {
 	
 	// Cache directory
 	$dir	= getDirectory( $root );
@@ -1129,7 +1135,7 @@ function findPostsArchive( array $data ) : array {
 	}
 	
 	// Set search based on year/month/day combination
-	switch ( count( $search ) ) {
+	switch ( \count( $search ) ) {
 		case 3:
 			$label	= 'archive_ymd';
 			break;
@@ -2291,7 +2297,7 @@ function authUser() : array {
 		}
 		
 		// Fetched results must be 6 rows
-		if ( count( $user ) !== 6 ) { return []; }
+		if ( \count( $user ) !== 6 ) { return []; }
 		
 		// User found, apply authorization
 		setAuth( $user );
@@ -2300,7 +2306,7 @@ function authUser() : array {
 	} else {
 		// Fetched results must be a 4-item array
 		$user		= $_SESSION['user'];
-		if ( count( $user ) !== 4 ) { 
+		if ( \count( $user ) !== 4 ) { 
 			$_SESSION['user']	= '';
 			return []; 
 		}
@@ -3071,7 +3077,7 @@ function indexView(
 		'{page_body}'		=> 
 			formatPosts( $results, $feed, $admin ),
 		'{navpages}'		=> 
-			navPage( $page, count( $results ) )
+			navPage( $page, \count( $results ) )
 	] );
 	
 	return parseLang( $content );
@@ -3362,7 +3368,7 @@ function viewPage( array $route ) {
 		);
 		
 		// Have neighbors?
-		if ( count( $siblings ) ) {
+		if ( \count( $siblings ) ) {
 			$post['{siblings}']	= 
 				siblingPages( $siblings );
 		} else {
