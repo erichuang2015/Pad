@@ -128,12 +128,13 @@ if ( $stm->execute() ) {
 // New user ID
 $uid	= 0;
 $pass	= '';
+$passh	= '';
 try {
 	// Generate new password
 	$pass	= \bin2hex( \random_bytes( 12 ) );
 	
 	// Standard hash
-	$pass	= 
+	$passh	= 
 	\base64_encode(
 		\password_hash(
 			\base64_encode(
@@ -155,7 +156,7 @@ $db->prepare(
 
 if ( $stm->execute( [
 	':username'	=> DEFAULT_USER,
-	':password'	=> $pass,
+	':password'	=> $passh,
 	':status'	=> AUTH_ADMIN
 ] ) ) {
 	$uid = $db->lastInsertId();
