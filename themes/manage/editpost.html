@@ -20,9 +20,19 @@
 </form>
 <footer>
 	<p><input name="preview" type="submit" value="{lang:forms:editost:save}"> | 
-			<input name="save" type="submit" value="{lang:forms:editost:publish}"></p>
-	{delete}
-	<p><a href="{post_list}">{lang:labels:postlist}</a> | 
+		<input name="save" type="submit" value="{lang:forms:editost:publish}"></p>
+	<p>
+	<input type="checkbox" name="delete" id="delete" value="1" rel="conf" />
+	<label for="delete">{lang:forms:editpost:delete}</label> 
+	<span rel="conf"> | 
+		{lang:forms:editpost:delprefix}
+		<label>
+			<strong>{lang:forms:editpost:delconf}</strong>
+			<input type="checkbox" name="delconf" value="1" /> 
+		</label>
+	</span>
+</p>
+<p><a href="{post_list}">{lang:labels:postlist}</a> | 
 	<a href="{settings}">{lang:labels:settings}</a> | 
 	<a href="{help}">{lang:labels:help}</a></p>
 </footer>
