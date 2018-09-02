@@ -2,22 +2,29 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
-<meta name='viewport' content='width=device-width'>
-<link rel='stylesheet' href='{theme}style.css'>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width">
+<link rel="stylesheet" href="{theme}style.css">
 <title>{page_title}</title>
 </head>
 <body>
 <header>
-	<h1>{username}</h1>
+	<h1>{lang:labels:profile} {username}</h1>
 </header>
 
-<article class='post'>
-	<form action='{action}' method='post'>
-		<input type='hidden' name='csrf' value='{csrf}'>
-		<p><input type='text' name='display' placeholder='display name' value="{display}"></p>
-		<p><textarea name="bio">{bio}</textarea></p>
-		<p><input type='submit' value='Save'></p>
+<article class="post">
+	<form action="{action}" method="post">
+		<input type="hidden" name="csrf" value="{csrf}">
+		<p><input type="text" name="display" placeholder="{lang:forms:bio:display}" value="{display}"></p>
+		<p><textarea name="bio" placeholder="{lang:forms:bio:profile}">{bio}</textarea></p>
+		<p><input type="checkbox" name="delete" id="delete" value="1" rel="conf" />
+			<label for="delete">{lang:forms:bio:delete}</label> 
+			<span rel="conf"> | {lang:forms:bio:delprefix}<label>
+				<strong>{lang:forms:bio:delconf}</strong>
+				<input type="checkbox" name="delconf" value="1" /></label>
+			</span>
+		</p>
+		<p><input type="submit" value="{lang:forms:bio:submit}"></p>
 	</form>
 </article>
 </body>
