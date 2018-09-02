@@ -1,7 +1,12 @@
 <?php declare( strict_types = 1 );
 
+
+// Do not edit the following 2 lines
+define( 'INCLUDED',		1 );
+require( 'config.php' );
+
 // Setup check
-if ( \file_exists( \dirname(__FILE__) . '/setup.php' ) ) {
+if ( \file_exists( PATH . 'setup.php' ) ) {
 	die( 'Setup incomplete or setup.php needs to be deleted' );
 }
 
@@ -90,12 +95,6 @@ define(
 define( 'RX_XSS2',		'/(<(s(?:cript|tyle)).*?)/ism' );
 define( 'RX_XSS3',		'/(document\.|window\.|eval\(|\(\))/ism' );
 define( 'RX_XSS4',		'/(\\~\/|\.\.|\\\\|\-\-)/sm' );
-
-
-
-// Do not edit the following 2 lines
-define( 'INCLUDED', 1 );
-require( 'config.php' );
 
 
 /**
