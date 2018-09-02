@@ -54,8 +54,11 @@
 			
 		}, 
 		"bio"		: {
-			"display"	: "display name",
-			"profile"	: "profile info",
+			"display"	: "Display name",
+			"profile"	: "Profile info",
+			"delete"	: "Delete user account",
+			"delprefix"	: "Are you sure?",
+			"delconf"	: "This cannot be undone",
 			"submit"	: "Save profile"
 		}
 	},
@@ -65,6 +68,7 @@
 		"home"		: "Home",
 		"editor"	: "Editor",
 		"manage"	: "Manage",
+		"profile"	: "Profile",
 		"settings"	: "Settings",
 		"newpost"	: "New post",
 		"postlist"	: "Posts",
