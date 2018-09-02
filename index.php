@@ -1,7 +1,7 @@
 <?php declare( strict_types = 1 );
 
 /**
- *  Site messages
+ *  Default site messages
  */
 define( 'MSG_LOGIN',		'Please login first' );
 define( 'MSG_NOTFOUND',	'Page not found' );
@@ -481,6 +481,15 @@ function language() {
 	
 	$data	= empty( $terms ) ? [] : $terms;
 	return $data;
+}
+
+/**
+ *  Get translation file error message with fallback
+ */
+function errorLang( $name, $default ) {
+	$data = language();
+	
+	return $data['errors'][$name] ?? $default;
 }
 
 /**
@@ -2019,7 +2028,7 @@ function username( string $text ) : string {
  *  Password filter
  */
 function password( $value ) : string {
-	$value = pacify( $value ?? ''  );
+	$value = pacify( $value ?? '' );
 	
 	// Passwords only set to max size
 	return 
@@ -2714,6 +2723,18 @@ function send(
 }
 
 /**
+ *  Send error page
+ */
+function sendError( $code, $name, $default ) {
+	$msg	= errorLang( $name, $default );
+	$htpl	= getTemplate( 'error' );
+	$tpl	= parseLang( $htpl );
+	
+	send( $code, strtr( $tpl, [ '{msg}' => $msg ] ) );
+}
+
+
+/**
  *  Login path redirect helper
  *  
  *  @param string	$redir		Relative path to prepend login
@@ -3150,7 +3171,7 @@ function homepage( array $route, bool $feed = false ) {
 	
 	$results	= findPostsByIndex( $data );
 	if ( empty( $results ) ) {
-		send( 404, MSG_NOTFOUND );
+		notfound();
 	}
 	
 	$theme		= getTemplate( 'home', $feed, false );
@@ -3212,7 +3233,7 @@ function archive( array $route ) {
 	
 	$results	= findPostsArchive( $data );
 	if ( empty( $results ) ) {
-		send( 404, MSG_NOTFOUND );
+		notfound();
 	}
 	
 	$theme		= getTemplate( 'home', $feed, false );
@@ -3289,7 +3310,7 @@ function viewPage( array $route ) {
 	}
 	
 	if ( empty( $post ) ) {
-		send( 404, MSG_NOTFOUND );
+		notfound();
 	}
 	 
 	$htpl			= getTemplate( 'post' );
@@ -3382,7 +3403,7 @@ function search( array $route ) {
 	$results	= findPostBySearch( $page, $search );
 	
 	if ( empty( $results ) ) {
-		send( 404, MSG_NOTFOUND );
+		notfound();
 	}
 	
 	$theme		= getTemplate( 'home', $feed, false );
@@ -3398,7 +3419,7 @@ function newPage( array $route ) {
 	$user		= authUser();
 	
 	if ( empty( $user ) ) {
-		send( 403, MSG_LOGIN );
+		sendError( 403, 'login', MSG_LOGIN );
 	}
 	
 	// Load post template and get root
@@ -3427,7 +3448,7 @@ function newPage( array $route ) {
 function doNewPage( array $route ) {
 	$user		= authUser();
 	if ( empty( $user ) ) {
-		send( 403, MSG_LOGIN );
+		sendError( 403, 'login', MSG_LOGIN );
 	}
 	
 	$filter 	= [ 
@@ -3480,13 +3501,13 @@ function editPage( array $route ) {
 	
 	$id		= ( int ) ( $data['id'] ?? 0 );
 	if ( empty( $id ) ) {
-		send( 404, MSG_NOTFOUND );
+		notfound();
 	}
 	
 	// Check if post exists
 	$preview	= findPreviewById( $id );
 	if ( empty( $post ) ) {
-		send( 404, MSG_NOTFOUND );
+		notfound();
 	}
 	
 	// Check authorization
@@ -3663,7 +3684,7 @@ function doProfile( array $route ) {
 		( $id != $user['id'] )		&&
 		( $user['status'] < AUTH_EDITOR )
 	) {
-		send( 403, MSG_DENIED );
+		sendError( 403, 'denied', MSG_DENIED );
 	}
 	
 	$form		= 
@@ -3753,19 +3774,19 @@ function doLogin( array $route ) {
 	
 	$csrf = checkCsrf( 'login', $form['csrf'] ?? '' );
 	if ( !$csrf ) {
-		send( 403, MSG_FORMEXP );
+		sendError( 403, 'formexp', MSG_FORMEXP );
 	}
 	
 	if (
 		empty( $form['password'] )	|| 
 		empty( $form['username'] ) 
 	) {
-		send( 401, MSG_LOGINERROR );
+		sendError( 401, 'loginfailed', MSG_LOGINERROR );
 	}
 	
 	$user	= findUserByUsername( $form['username'] );
 	if ( empty( $user ) ) {
-		send( 401, MSG_LOGINERROR );
+		sendError( 401, 'loginfailed', MSG_LOGINERROR );
 	}
 	
 	// Password matches?
@@ -3791,7 +3812,7 @@ function doLogin( array $route ) {
 function viewRegister( array $route ) {
 	// Check if registration is allowed
 	if ( !config( 'allow_register', 'bool', false ) ) {
-		send( 403, MSG_REGCLOSED );
+		sendError( 403, 'regclosed', MSG_REGCLOSED );
 	}
 	$root		= getRoot();
 	$htpl		= getTemplate( 'register' );
@@ -3813,7 +3834,7 @@ function viewRegister( array $route ) {
 function doRegister( array $route ) {
 	// Check if registration is allowed
 	if ( !config( 'allow_register', 'bool', false ) ) {
-		send( 403, MSG_REGCLOSED );
+		sendError( 403, 'regclosed', MSG_REGCLOSED );
 	}
 	
 	$form		= 
@@ -3838,7 +3859,7 @@ function doRegister( array $route ) {
 	// Check for form expiration
 	$csrf = checkCsrf( 'register', $form['csrf'] ?? '' );
 	if ( !$csrf ) {
-		send( 403, MSG_FORMEXP );
+		sendError( 403, 'formexp', MSG_FORMEXP );
 	}
 	
 	// Empty check
@@ -3851,7 +3872,7 @@ function doRegister( array $route ) {
 	
 	// Passwords must match
 	if ( 0 !== strcmp( $form['password'], $form['password2'] ) ) {
-		send( 401, MSG_PASSMATCH );
+		sendError( 401, 'passmatch', MSG_PASSMATCH );
 	}
 	
 	$data	= saveUser( [
@@ -3912,7 +3933,7 @@ function doChPass( array $route ) {
 	// Check for form expiration
 	$csrf = checkCsrf( 'chpassword', $form['csrf'] ?? '' );
 	if ( !$csrf ) {
-		send( 403, MSG_FORMEXP );
+		sendError( 403, 'formexp', MSG_FORMEXP );
 	}
 	
 	// Something was missing
@@ -3920,12 +3941,12 @@ function doChPass( array $route ) {
 		empty( $data['password'] ) 	||
 		empty( $data['password2'] ) 
 	) {
-		send( 403, MSG_PASSERROR );
+		sendError( 403, 'passerror', MSG_PASSERROR );
 	}
 	
 	// They can't be the same
 	if ( 0 == strcmp( $data['password2'], $data['password'] ) ) {
-		send( 403, MSG_PASSERROR );
+		sendError( 403, 'passerror', MSG_PASSERROR );
 	}
 	
 	savePassword( $user['id'], $data['password2'] );
@@ -4064,7 +4085,7 @@ function doConfig( array $route ) {
 	
 	$csrf = checkCsrf( 'settings', $form['csrf'] ?? '' );
 	if ( !$csrf ) {
-		send( 403, MSG_FORMEXP );
+		sendError( 403, 'formexp', MSG_FORMEXP );
 	}
 	
 	// Filter HTML in copyright statement
