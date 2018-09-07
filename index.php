@@ -403,12 +403,20 @@ function request( string &$verb, string &$path ) {
  *  @return boolean true If the function exists
  */
 function missing( $func ) {
+	static $exts;
+	static $blocked;
+	
 	if ( \extension_loaded( 'suhosin' ) ) {
-		$exts = \ini_get( 'suhosin.executor.func.blacklist' );
+		if ( !isset( $exts ) ) {
+			$exts = \ini_get( 'suhosin.executor.func.blacklist' );
+		}
 		if ( !empty( $exts ) ) {
-			$blocked	= \explode( ',', \strtolower( $exts ) );
-			$blocked	= \array_map( 'trim', $blocked );
-			$search		= \strtolower( $func );
+			if ( !isset( $blocked ) ) {
+				$blocked = \explode( ',', \strtolower( $exts ) );
+				$blocked = \array_map( 'trim', $blocked );
+			}
+			
+			$search = \strtolower( $func );
 			
 			return (
 				false	== \function_exists( $func ) && 
