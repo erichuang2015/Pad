@@ -104,7 +104,7 @@ define( 'RX_XSS4',		'/(\\~\/|\.\.|\\\\|\-\-)/sm' );
 /**
  *  Process HTTP_* variables
  */
-public function httpHeaders() {
+public function httpHeaders() : array {
 	static $headers;
 	
 	if ( isset( $headers ) ) {
@@ -1986,15 +1986,21 @@ function markdown( $html, $prefix = '' ) {
 		// Block of code
 		'/\n`{3,}(.*)\n`{3,}/'			=>
 		function( $m ) { 
-			$t = \trim( $m[1] );
-			return \sprintf( '\n<pre><code>%s</code></pre>\n', $t );
+			return 
+			\sprintf( 
+				'\n<pre><code>%s</code></pre>\n', 
+				entities( \trim( $m[1] ) ) 
+			);
 		},
 		
-		// Inline code
+		// Inline code (untrimmed)
 		'/`(.*)`/'				=>
 		function( $m ) {
-			$t = \trim( $m[1] );
-			return \sprintf( '<code>%s</code>', $t );
+			return 
+			\sprintf( 
+				'<code>%s</code>', 
+				entities( $m[1] ) 
+			);
 		},
 		
 		// Horizontal rule
@@ -2104,6 +2110,9 @@ function html( $value ) : string {
 				}, $html
 			);
 	
+	// Apply Markdown formatting
+	$html		= markdown( $html, $prefix );
+	
 	$ent		= \libxml_disable_entity_loader( true );
 	$err		= \libxml_use_internal_errors( true );
 	
@@ -2124,11 +2133,34 @@ function html( $value ) : string {
 		scrub( $node, $white, $flush );
 	}
 	
-	// Apply Markdown formatting
-	$html		= markdown( $html, $prefix );
+	// Remove any tags not found in the whitelist
+	if ( !empty( $flush ) ) {
+		foreach( $flush as $node ) {
+			if ( $node->nodeName == '#text' ) {
+				continue;
+			}
+			// Replace tag with harmless text
+			$safe	= $dom->createTextNode( 
+					$dom->saveHTML( $node )
+				);
+			$node->parentNode
+				->replaceChild( $safe, $node );
+		}
+	}
+	
+	
+	// Separate content string
+	$clean		= '';
+	foreach ( $domBody->childNodes as $node ) {
+		$clean .= $dom->saveHTML( $node );
+	}
+	
+	
+	\libxml_clear_errors();
+	\libxml_use_internal_errors( $err );
 	
 	// Apply embedded media
-	return embeds( $html );
+	return trim( embeds( $clean ) );
 }
 
 /**
