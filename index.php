@@ -2103,7 +2103,7 @@ function html( $value ) : string {
 	
 	// Encode 
 	$html		= \preg_replace_callback( 
-				'/<code>(.*)</code>/ism', 
+				'/<code>(.*)<\/code>/ism', 
 				function ( $m ) {
 					return
 					entities( $m[1] );
@@ -2127,7 +2127,7 @@ function html( $value ) : string {
 		
 	$domBody	= 
 		$dom->getElementsByTagName( 'body' )->item( 0 );
-	
+	$flush		= [];
 	// Iterate through every HTML element 
 	foreach ( $domBody->childNodes as $node ) {
 		scrub( $node, $white, $flush );
@@ -2750,11 +2750,23 @@ function fullURI() {
 function send(
 	int		$code		= 200,
 	string		$content	= '',
-	bool		$cache		= false
+	bool		$cache		= false,
+	bool		$feed		= false
 ) {
 	$proto	= $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1';
 	httpCode( $proto, $code );
-	preamble();
+	
+	// If feed, override content type
+	if ( $feed ) {
+		\header( 
+			'Content-Type: application/rss+xml; charset=utf-8', 
+			true 
+		);
+		preamble( '', true, false );
+	// Everything else is default
+	} else {
+		preamble();	
+	}
 	
 	echo $content;
 	
@@ -3229,7 +3241,8 @@ function homepage( array $route, bool $feed = false ) {
 			true 
 		);
 	}
-	send( 200, indexView( $theme, $results, $page, $feed ) );
+	
+	send( 200, indexView( $theme, $results, $page, $feed ), true, true );
 }
 
 /**
