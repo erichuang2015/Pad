@@ -1984,12 +1984,12 @@ function markdown( $html, $prefix = '' ) {
 		function( $m ) { return ''; },
 		
 		// Block of code
-		'/\n`{3,}(.*)\n`{3,}/'			=>
-		function( $m ) { 
-			return 
-			\sprintf( 
-				'\n<pre><code>%s</code></pre>\n', 
-				entities( \trim( $m[1] ) ) 
+		'/^\n`{3,}([\s\S]*)(^(?!\s)`{3,}.*$)\n/gmU' =>
+		function( $m ) {
+			return
+			\sprintf(
+				'\n<pre><code>%s</code></pre>\n',
+				trim( entities( $m[1] ), '`' )
 			);
 		},
 		
