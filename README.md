@@ -54,7 +54,7 @@ also be added to cron for automatic backups.
 
 Set write permissions by running:
 ```
-chmod -R 644 /your-web-root/data
+chmod -R 755 /your-web-root/data
 ```
 
 ## Content formatting
