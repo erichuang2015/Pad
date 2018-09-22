@@ -160,11 +160,11 @@ server {
 		try_files $uri $uri/ index.php?$args;
 	}
 	
-	# Handle php
+	# Handle php (tested to work on Arch linux)
 	location ~ \.php$ {
-		include fastcgi_params;
-		fastcgi_intercept_errors on;
-		fastcgi_pass php;
+		fastcgi_pass	unix:/run/php-fpm/php-fpm.sock;
+		fastcgi_index	index.php;
+		include		fastcgi.conf;
         }
 }
 ``` 
