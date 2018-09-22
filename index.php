@@ -1989,7 +1989,7 @@ function markdown( $html, $prefix = '' ) {
 			return
 			\sprintf(
 				'\n<pre><code>%s</code></pre>\n',
-				trim( entities( $m[1] ), '`' )
+				entities( trim( $m[1] , '`' ) )
 			);
 		},
 		
